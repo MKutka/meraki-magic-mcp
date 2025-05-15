@@ -1,0 +1,31 @@
+# Smithery configuration file: https://smithery.ai/docs/build/project-config
+
+startCommand:
+  type: stdio
+  configSchema:
+    # JSON Schema defining the configuration options for the MCP.
+    type: object
+    required:
+      - merakiApiKey
+      - merakiOrgId
+    properties:
+      merakiApiKey:
+        type: string
+        description: Meraki API Key
+      merakiOrgId:
+        type: string
+        description: Meraki Organization ID
+  commandFunction:
+    # A JS function that produces the CLI command based on the given config to start the MCP on stdio.
+    |-
+    (config) => ({
+      command: 'python',
+      args: ['meraki-mcp.py'],
+      env: {
+        MERAKI_API_KEY: config.merakiApiKey,
+        MERAKI_ORG_ID: config.merakiOrgId
+      }
+    })
+  exampleConfig:
+    merakiApiKey: 1234567890abcdef
+    merakiOrgId: "987654"
