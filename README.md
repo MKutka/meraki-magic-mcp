@@ -1,4 +1,5 @@
 Meraki Magic MCP
+[![smithery badge](https://smithery.ai/badge/@MKutka/meraki-magic-mcp)](https://smithery.ai/server/@MKutka/meraki-magic-mcp)
 
 Meraki Magic is a Python-based MCP (Model Context Protocol) server for Cisco's Meraki Dashboard. Meraki Magic provides tools for querying the Meraki Dashboard API to discover, moniter, and manage your Meraki environment.
 
@@ -12,6 +13,15 @@ Meraki Magic is a Python-based MCP (Model Context Protocol) server for Cisco's M
 
 ## Installation
 
+### Installing via Smithery
+
+To install Meraki Magic for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@MKutka/meraki-magic-mcp):
+
+```bash
+npx -y @smithery/cli install @MKutka/meraki-magic-mcp --client claude
+```
+
+### Manual Installation
 1. Clone the repository:
 ```bash
 git clone https://github.com/mkutka/meraki-magic.git
