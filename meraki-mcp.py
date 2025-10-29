@@ -19,7 +19,7 @@ MERAKI_API_KEY = os.getenv("MERAKI_API_KEY")
 MERAKI_ORG_ID = os.getenv("MERAKI_ORG_ID")
 
 # Initialize Meraki API client using Meraki SDK
-dashboard = meraki.DashboardAPI(api_key=MERAKI_API_KEY, suppress_logging=True)
+dashboard = meraki.DashboardAPI(api_key=MERAKI_API_KEY, suppress_logging=True, caller="meraki-magic-mcp")
 
 ###################
 # ASYNC UTILITIES
