@@ -1,82 +1,245 @@
-# Meraki Magic MCP
+Meraki Magic MCP
 
 Meraki Magic is a Python-based MCP (Model Context Protocol) server for Cisco's Meraki Dashboard. Meraki Magic provides tools for querying the Meraki Dashboard API to discover, monitor, and manage your Meraki environment.
 
+## Two Versions Available
+
+**🚀 Dynamic MCP (Recommended)** - `meraki-mcp-dynamic.py`
+- **~804 API endpoints** automatically exposed
+- **100% SDK coverage** - all Meraki API methods available
+- **Auto-updates** when you upgrade the Meraki SDK
+- **No manual coding** required for new endpoints
+
+**📋 Manual MCP** - `meraki-mcp.py`
+- **40 curated endpoints** with detailed schemas
+- **Type-safe** with Pydantic validation
+- **Custom business logic** for specific use cases
+- **Clean documentation** for common operations
+
 ## Features
 
-- **Comprehensive Network Management**: Full network discovery, monitoring, and management
-- **Advanced Device Management**: Device provisioning, monitoring, and live tools
-- **Wireless Management**: Complete wireless SSID and RF profile management
-- **Switch Management**: Port management, VLAN configuration, and QoS rules
-- **Appliance Management**: VPN, firewall, content filtering, and security management
-- **Camera Management**: Analytics, snapshots, and sense configuration
-- **Network Automation**: Action batches and bulk operations
-- **Live Device Tools**: Ping, cable testing, LED control, and wake-on-LAN
-- **Advanced Monitoring**: Events, alerts, and performance analytics
+**Dynamic MCP includes:**
+- All organization management (admins, networks, devices, inventory, licensing)
+- Complete wireless management (SSIDs, RF profiles, Air Marshal, analytics)
+- Full switch management (ports, VLANs, stacks, QoS, access policies)
+- Advanced appliance/security (all firewall types, NAT, VPN, traffic shaping)
+- Camera management (analytics, quality, schedules, permissions)
+- Network monitoring (events, alerts, health, performance)
+- Live troubleshooting tools (ping, cable test, ARP table)
+- Webhooks and automation (alert profiles, action batches)
+- And 700+ more endpoints...
 
-## Installation
+**Manual MCP includes:**
+- Network discovery and management
+- Device discovery and configuration
+- Client discovery and policy management
+- Wireless SSID management
+- Switch port and VLAN configuration
+- Basic firewall rules
+- Camera settings
 
-1. Clone the repository:
+## Quick Installation
+
+### Prerequisites
+- Python 3.8+
+- Claude Desktop
+- Meraki Dashboard API Key
+- Meraki Organization ID
+
+### Fast Track
+
+**macOS:**
 ```bash
-git clone https://github.com/mkutka/meraki-magic.git
+git clone https://github.com/MKutka/meraki-magic-mcp.git
 cd meraki-magic-mcp
-```
-
-2. Create a virtual environment and activate it:
-```bash
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-```
-
-3. Install dependencies:
-```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
+cp .env-example .env
+# Edit .env with your API credentials
 ```
+
+**Windows (PowerShell):**
+```powershell
+git clone https://github.com/MKutka/meraki-magic-mcp.git
+cd meraki-magic-mcp
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+copy .env-example .env
+# Edit .env with your API credentials
+```
+
+**📖 For detailed step-by-step instructions, see [INSTALL.md](INSTALL.md)**
 
 ## Configuration
 
-1. Copy the example environment file:
-```bash
-cp .env-example .env
-```
+Edit `.env` with your Meraki credentials:
 
-2. Update the `.env` file with your Meraki API Key and Organization ID:
 ```env
-MERAKI_API_KEY="Meraki API Key here"
-MERAKI_ORG_ID="Meraki Org ID here"
+MERAKI_API_KEY="your_api_key_here"
+MERAKI_ORG_ID="your_org_id_here"
+
+# Optional: Performance tuning
+ENABLE_CACHING=true
+CACHE_TTL_SECONDS=300
+READ_ONLY_MODE=false
 ```
 
-## Usage With Claude Desktop Client
+Get your API key from: **Meraki Dashboard → Organization → Settings → Dashboard API access**
 
-1. Configure Claude Desktop to use this MCP server:
+## Claude Desktop Setup
 
-- Open Claude Desktop
-- Go to Settings > Developer > Edit Config
-- Add the following configuration file `claude_desktop_config.json`
+### Dynamic MCP (Recommended)
 
+1. **Locate Claude config file:**
+   - **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+   - **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+
+2. **Edit config with your paths:**
+
+**macOS Example:**
 ```json
 {
   "mcpServers": {
-      "Meraki_Magic_MCP": {
-        "command": "/Users/mkutka/meraki-magic-mcp/.venv/bin/fastmcp",
-        "args": [
-          "run",
-          "/Users/mkutka/meraki-magic-mcp/meraki-mcp.py"
-        ]
-      }
+    "Meraki_Magic_MCP": {
+      "command": "/Users/yourname/meraki-magic-mcp/.venv/bin/fastmcp",
+      "args": [
+        "run",
+        "/Users/yourname/meraki-magic-mcp/meraki-mcp-dynamic.py"
+      ]
+    }
   }
 }
 ```
 
-- Replace the paths above to reflect your local environment.
+**Windows Example:**
+```json
+{
+  "mcpServers": {
+    "Meraki_Magic_MCP": {
+      "command": "C:/Users/YourName/meraki-magic-mcp/.venv/Scripts/fastmcp.exe",
+      "args": [
+        "run",
+        "C:/Users/YourName/meraki-magic-mcp/meraki-mcp-dynamic.py"
+      ]
+    }
+  }
+}
+```
 
-2. Restart Claude Desktop
+**⚠️ Windows users:** Use forward slashes `/` and include `.exe` extension
 
-3. Interact with Claude Desktop
+3. **Restart Claude Desktop** (Quit completely, then reopen)
 
-## Network Tools Guide
+4. **Verify:** Ask Claude "What MCP servers are available?"
 
-This guide provides a comprehensive overview of all the network tools available in the Meraki Magic MCP, organized by category and functionality.
+**📖 Detailed setup instructions: [INSTALL.md](INSTALL.md)**
+
+### Manual MCP (Original)
+
+Use `meraki-mcp.py` instead of `meraki-mcp-dynamic.py` in the config above.
+
+### Both MCPs (Advanced)
+
+You can run both simultaneously:
+
+```json
+{
+  "mcpServers": {
+    "Meraki_Curated": {
+      "command": "/Users/apavlock/meraki-magic-mcp/.venv/bin/fastmcp",
+      "args": ["run", "/Users/apavlock/meraki-magic-mcp/meraki-mcp.py"]
+    },
+    "Meraki_Full_API": {
+      "command": "/Users/apavlock/meraki-magic-mcp/.venv/bin/fastmcp",
+      "args": ["run", "/Users/apavlock/meraki-magic-mcp/meraki-mcp-dynamic.py"]
+    }
+  }
+}
+```
+
+## Keeping Updated
+
+The dynamic MCP automatically stays current with Meraki's API:
+
+```bash
+# Manually update SDK
+pip install --upgrade meraki
+```
+
+Then restart Claude Desktop. See [UPDATE_GUIDE.md](UPDATE_GUIDE.md) for details.
+
+## Performance & Safety Features
+
+The dynamic MCP includes several optimizations:
+
+✅ **Response Caching** - Read-only operations cached for 5 minutes (reduces API calls by 50-90%)
+✅ **Read-Only Mode** - Optional safety mode blocks write operations
+✅ **Auto-Retry** - Automatic retry on failures (3 attempts)
+✅ **Rate Limit Handling** - Automatically waits when rate limited
+✅ **Operation Labeling** - Tools labeled as [READ], [WRITE], or [MISC]
+
+See [OPTIMIZATIONS.md](OPTIMIZATIONS.md) for details.
+
+## Documentation
+
+- **[INSTALL.md](INSTALL.md)** - Detailed installation guide (macOS & Windows)
+- **[QUICKSTART.md](QUICKSTART.md)** - Get started quickly with examples
+- **[README-DYNAMIC.md](README-DYNAMIC.md)** - Dynamic MCP technical details
+- **[COMPARISON.md](COMPARISON.md)** - Compare manual vs dynamic approaches
+- **[UPDATE_GUIDE.md](UPDATE_GUIDE.md)** - Keep your MCP current with latest APIs
+- **[OPTIMIZATIONS.md](OPTIMIZATIONS.md)** - Performance and safety features
+
+## How It Works
+
+The Dynamic MCP provides two ways to access Meraki APIs:
+
+1. **Pre-registered tools** (12 most common operations):
+   - `getOrganizations`, `getOrganizationAdmins`, `getOrganizationNetworks`
+   - `getNetworkClients`, `getNetworkEvents`, `getDeviceSwitchPorts`
+   - And 6 more common operations
+
+2. **Generic API caller** (`call_meraki_api`):
+   - Access ALL 804+ Meraki API methods
+   - Example: `call_meraki_api(section="appliance", method="getNetworkApplianceFirewallL3FirewallRules", parameters={"networkId": "L_123"})`
+
+## Example Usage
+
+```
+Get all admins in my organization
+
+Show me firewall rules for network "Main Office"
+
+Update switch port 12 on device ABC123 to enable BPDU guard
+
+Get wireless clients from the last hour
+
+Create a new network named "Branch Office"
+```
+
+## Support
+
+- **Issues:** [GitHub Issues](https://github.com/MKutka/meraki-magic-mcp/issues)
+- **Meraki API Docs:** [developer.cisco.com/meraki/api-v1](https://developer.cisco.com/meraki/api-v1)
+- **MCP Protocol:** [modelcontextprotocol.io](https://modelcontextprotocol.io)
+
+## Contributing
+
+Contributions welcome! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Submit a pull request
+
+---
+
+## Manual MCP Tools Reference
+
+The following tools are available in the manual MCP (`meraki-mcp.py`). **The dynamic MCP provides access to these and 760+ additional endpoints through the generic `call_meraki_api` tool.**
+
+### Network Tools Guide
+
+This guide provides a comprehensive overview of the curated network tools available in the manual MCP, organized by category and functionality.
 
 ### Table of Contents
 
@@ -252,24 +415,9 @@ This guide provides a comprehensive overview of all the network tools available 
 
 ---
 
-## Advanced Monitoring Tools
-
-### Network Events & Alerts
-- **`get_network_events(network_id, timespan, per_page)`** - Get network events history
-- **`get_network_event_types(network_id)`** - Get available network event types
-- **`get_network_alerts_history(network_id, timespan)`** - Get network alerts history
-- **`get_network_alerts_settings(network_id)`** - Get network alerts settings
-- **`update_network_alerts_settings(network_id, defaultDestinations, alerts)`** - Update network alerts settings
-
-### Organization Monitoring
-- **`get_organization_api_requests(org_id, timespan)`** - Get organization API request history
-- **`get_organization_webhook_logs(org_id, timespan)`** - Get organization webhook logs
-
----
-
 ## Schema Definitions
 
-The MCP includes comprehensive Pydantic schemas for data validation:
+The manual MCP includes comprehensive Pydantic schemas for data validation:
 
 - `SsidUpdateSchema` - Wireless SSID configuration
 - `FirewallRule` - Firewall rule configuration
@@ -288,7 +436,7 @@ The MCP includes comprehensive Pydantic schemas for data validation:
 ## Best Practices
 
 1. **Error Handling**: Always check API responses for errors
-2. **Rate Limiting**: The Meraki API has rate limits; use appropriate delays
+2. **Rate Limiting**: The Meraki API has rate limits; use appropriate delays (or use dynamic MCP with caching)
 3. **Batch Operations**: Use action batches for bulk operations
 4. **Validation**: Use the provided schemas for data validation
 5. **Monitoring**: Regularly check network events and alerts
@@ -301,23 +449,13 @@ The MCP includes comprehensive Pydantic schemas for data validation:
 ### Common Issues
 
 1. **Authentication Errors**: Verify your API key is correct and has appropriate permissions
-2. **Rate Limiting**: If you encounter rate limiting, implement delays between requests
+2. **Rate Limiting**: If you encounter rate limiting, implement delays between requests (or use dynamic MCP with caching)
 3. **Network Not Found**: Ensure the network ID is correct and accessible
 4. **Device Not Found**: Verify the device serial number is correct and the device is online
 
 ### Debug Information
 
 Enable debug logging by setting the appropriate log level in your environment.
-
----
-
-## Additional Resources
-
-- [Meraki API Documentation](https://developer.cisco.com/meraki/api-v1/)
-- [MCP Protocol Documentation](https://modelcontextprotocol.io/)
-- [FastMCP Documentation](https://github.com/jlowin/fastmcp)
-
-For more detailed information about additional tools and future enhancements, see the [Additional Tools Roadmap](ADDITIONAL_TOOLS_ROADMAP.md).
 
 ---
 
@@ -338,3 +476,7 @@ This software is provided "AS IS" without warranty of any kind, either express o
 **NO WARRANTY**: The authors disclaim all warranties, including but not limited to warranties of merchantability, fitness for a particular purpose, and non-infringement. In no event shall the authors be liable for any claim, damages, or other liability arising from the use of this software.
 
 **SUPPORT**: This is an open-source project. For production use, consider implementing additional testing, monitoring, and support mechanisms appropriate for your environment.
+
+## License
+
+See [LICENSE](LICENSE) file for details.
