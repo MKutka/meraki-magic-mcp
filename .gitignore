@@ -26,6 +26,7 @@ venv/
 ENV/
 env/
 .env
+.venv/
 
 # IDE
 .idea/
@@ -36,3 +37,6 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+
+# Documentation
+ADDITIONAL_TOOLS_ROADMAP.md

@@ -19,7 +19,7 @@ MERAKI_API_KEY = os.getenv("MERAKI_API_KEY")
 MERAKI_ORG_ID = os.getenv("MERAKI_ORG_ID")
 
 # Initialize Meraki API client using Meraki SDK
-dashboard = meraki.DashboardAPI(api_key=MERAKI_API_KEY, suppress_logging=True)
+dashboard = meraki.DashboardAPI(api_key=MERAKI_API_KEY, suppress_logging=True, caller="meraki-magic-mcp")
 
 ###################
 # ASYNC UTILITIES
@@ -125,6 +125,55 @@ class NetworkUpdateSchema(BaseModel):
     enrollmentString: Optional[str] = Field(None, description="Enrollment string for the network")
     notes: Optional[str] = Field(None, description="Notes for the network")
 
+# Admin Creation Schema
+class AdminCreationSchema(BaseModel):
+    email: str = Field(..., description="Email address of the admin")
+    name: str = Field(..., description="Name of the admin")
+    orgAccess: str = Field(..., description="Access level for the organization")
+    tags: Optional[List[str]] = Field(None, description="List of tags for the admin")
+    networks: Optional[List[dict]] = Field(None, description="Network access for the admin")
+
+# Action Batch Schema
+class ActionBatchSchema(BaseModel):
+    actions: List[dict] = Field(..., description="List of actions to perform")
+    confirmed: bool = Field(True, description="Whether the batch is confirmed")
+    synchronous: bool = Field(False, description="Whether the batch is synchronous")
+
+# VPN Configuration Schema
+class VpnSiteToSiteSchema(BaseModel):
+    mode: str = Field(..., description="VPN mode (none, full, or hub-and-spoke)")
+    hubs: Optional[List[dict]] = Field(None, description="List of hub configurations")
+    subnets: Optional[List[dict]] = Field(None, description="List of subnet configurations")
+
+# Content Filtering Schema
+class ContentFilteringSchema(BaseModel):
+    allowedUrls: Optional[List[str]] = Field(None, description="List of allowed URLs")
+    blockedUrls: Optional[List[str]] = Field(None, description="List of blocked URLs")
+    blockedUrlPatterns: Optional[List[str]] = Field(None, description="List of blocked URL patterns")
+    youtubeRestrictedForTeenagers: Optional[bool] = Field(None, description="Restrict YouTube for teenagers")
+    youtubeRestrictedForMature: Optional[bool] = Field(None, description="Restrict YouTube for mature content")
+
+# Traffic Shaping Schema
+class TrafficShapingSchema(BaseModel):
+    globalBandwidthLimits: Optional[dict] = Field(None, description="Global bandwidth limits")
+    rules: Optional[List[dict]] = Field(None, description="Traffic shaping rules")
+
+# Camera Sense Schema
+class CameraSenseSchema(BaseModel):
+    senseEnabled: Optional[bool] = Field(None, description="Whether camera sense is enabled")
+    mqttBrokerId: Optional[str] = Field(None, description="MQTT broker ID")
+    audioDetection: Optional[dict] = Field(None, description="Audio detection settings")
+
+# Switch QoS Rule Schema
+class SwitchQosRuleSchema(BaseModel):
+    vlan: int = Field(..., description="VLAN ID")
+    protocol: str = Field(..., description="Protocol (tcp, udp, any)")
+    srcPort: int = Field(..., description="Source port")
+    srcPortRange: Optional[str] = Field(None, description="Source port range")
+    dstPort: Optional[int] = Field(None, description="Destination port")
+    dstPortRange: Optional[str] = Field(None, description="Destination port range")
+    dscp: Optional[int] = Field(None, description="DSCP value")
+
 #######################
 # ORGANIZATION TOOLS  #
 #######################
@@ -201,6 +250,14 @@ def get_organization_license(org_id: str = None) -> str:
     organization_id = org_id or MERAKI_ORG_ID
     license_state = dashboard.organizations.getOrganizationLicensesOverview(organization_id)
     return json.dumps(license_state, indent=2)
+
+# Get organization configuration changes
+@mcp.tool()
+def get_organization_conf_change(org_id: str = None) -> str:
+    """Get the org change state for an organization"""
+    organization_id = org_id or MERAKI_ORG_ID
+    org_config_changes = dashboard.organizations.getOrganizationConfigurationChanges(organization_id)
+    return json.dumps(org_config_changes, indent=2)
 
 #######################
 # NETWORK TOOLS       #
@@ -423,12 +480,7 @@ def get_wireless_settings(network_id: str) -> str:
     settings = dashboard.wireless.getNetworkWirelessSettings(network_id)
     return json.dumps(settings, indent=2)
 
-# Get wireless clients
-@mcp.tool()
-def get_wireless_clients(network_id: str, timespan: int = 86400) -> str:
-    """Get wireless clients for a network"""
-    clients = dashboard.wireless.getNetworkWirelessClients(network_id, timespan=timespan)
-    return json.dumps(clients, indent=2)
+
 
 #######################
 # SWITCH TOOLS        #
@@ -539,6 +591,410 @@ def get_camera_quality_settings(network_id: str) -> str:
     """Get quality and retention settings for cameras in a network"""
     settings = dashboard.camera.getNetworkCameraQualityRetentionProfiles(network_id)
     return json.dumps(settings, indent=2)
+
+#######################
+# ADVANCED ORGANIZATION TOOLS
+#######################
+
+# Get organization admins
+@mcp.tool()
+def get_organization_admins(org_id: str = None) -> str:
+    """Get a list of organization admins"""
+    organization_id = org_id or MERAKI_ORG_ID
+    admins = dashboard.organizations.getOrganizationAdmins(organization_id)
+    return json.dumps(admins, indent=2)
+
+# Create organization admin
+@mcp.tool()
+def create_organization_admin(org_id: str, email: str, name: str, org_access: str, tags: list[str] = None, networks: list[dict] = None) -> str:
+    """Create a new organization admin"""
+    organization_id = org_id or MERAKI_ORG_ID
+    kwargs = {
+        'email': email,
+        'name': name,
+        'orgAccess': org_access
+    }
+    if tags:
+        kwargs['tags'] = tags
+    if networks:
+        kwargs['networks'] = networks
+    
+    result = dashboard.organizations.createOrganizationAdmin(organization_id, **kwargs)
+    return json.dumps(result, indent=2)
+
+# Get organization API requests
+@mcp.tool()
+def get_organization_api_requests(org_id: str = None, timespan: int = 86400) -> str:
+    """Get organization API request history"""
+    organization_id = org_id or MERAKI_ORG_ID
+    requests = dashboard.organizations.getOrganizationApiRequests(organization_id, timespan=timespan)
+    return json.dumps(requests, indent=2)
+
+# Get organization webhook logs
+@mcp.tool()
+def get_organization_webhook_logs(org_id: str = None, timespan: int = 86400) -> str:
+    """Get organization webhook logs"""
+    organization_id = org_id or MERAKI_ORG_ID
+    logs = dashboard.organizations.getOrganizationWebhooksLogs(organization_id, timespan=timespan)
+    return json.dumps(logs, indent=2)
+
+#######################
+# ENHANCED NETWORK MONITORING
+#######################
+
+# Get network events
+@mcp.tool()
+def get_network_events(network_id: str, timespan: int = 86400, per_page: int = 100) -> str:
+    """Get network events history"""
+    events = dashboard.networks.getNetworkEvents(network_id, timespan=timespan, perPage=per_page)
+    return json.dumps(events, indent=2)
+
+# Get network event types
+@mcp.tool()
+def get_network_event_types(network_id: str) -> str:
+    """Get available network event types"""
+    event_types = dashboard.networks.getNetworkEventsEventTypes(network_id)
+    return json.dumps(event_types, indent=2)
+
+# Get network alerts history
+@mcp.tool()
+def get_network_alerts_history(network_id: str, timespan: int = 86400) -> str:
+    """Get network alerts history"""
+    alerts = dashboard.networks.getNetworkAlertsHistory(network_id, timespan=timespan)
+    return json.dumps(alerts, indent=2)
+
+# Get network alerts settings
+@mcp.tool()
+def get_network_alerts_settings(network_id: str) -> str:
+    """Get network alerts settings"""
+    settings = dashboard.networks.getNetworkAlertsSettings(network_id)
+    return json.dumps(settings, indent=2)
+
+# Update network alerts settings
+@mcp.tool()
+def update_network_alerts_settings(network_id: str, defaultDestinations: dict = None, alerts: list[dict] = None) -> str:
+    """Update network alerts settings"""
+    kwargs = {}
+    if defaultDestinations:
+        kwargs['defaultDestinations'] = defaultDestinations
+    if alerts:
+        kwargs['alerts'] = alerts
+    
+    result = dashboard.networks.updateNetworkAlertsSettings(network_id, **kwargs)
+    return json.dumps(result, indent=2)
+
+#######################
+# LIVE DEVICE TOOLS
+#######################
+
+# Ping device
+@mcp.tool()
+def ping_device(serial: str, target_ip: str, count: int = 5) -> str:
+    """Ping a device from another device"""
+    result = dashboard.devices.createDeviceLiveToolsPing(serial, target_ip, count=count)
+    return json.dumps(result, indent=2)
+
+# Get ping results
+@mcp.tool()
+def get_device_ping_results(serial: str, ping_id: str) -> str:
+    """Get results from a device ping test"""
+    result = dashboard.devices.getDeviceLiveToolsPing(serial, ping_id)
+    return json.dumps(result, indent=2)
+
+# Cable test device
+@mcp.tool()
+def cable_test_device(serial: str, ports: list[str]) -> str:
+    """Run cable test on device ports"""
+    result = dashboard.devices.createDeviceLiveToolsCableTest(serial, ports)
+    return json.dumps(result, indent=2)
+
+# Get cable test results
+@mcp.tool()
+def get_device_cable_test_results(serial: str, cable_test_id: str) -> str:
+    """Get results from a device cable test"""
+    result = dashboard.devices.getDeviceLiveToolsCableTest(serial, cable_test_id)
+    return json.dumps(result, indent=2)
+
+# Blink device LEDs
+@mcp.tool()
+def blink_device_leds(serial: str, duration: int = 5) -> str:
+    """Blink device LEDs for identification"""
+    result = dashboard.devices.blinkDeviceLeds(serial, duration=duration)
+    return json.dumps(result, indent=2)
+
+# Wake on LAN
+@mcp.tool()
+def wake_on_lan_device(serial: str, mac: str) -> str:
+    """Send wake-on-LAN packet to a device"""
+    result = dashboard.devices.createDeviceLiveToolsWakeOnLan(serial, mac)
+    return json.dumps(result, indent=2)
+
+#######################
+# ADVANCED WIRELESS TOOLS
+#######################
+
+# Get wireless RF profiles
+@mcp.tool()
+def get_wireless_rf_profiles(network_id: str) -> str:
+    """Get wireless RF profiles for a network"""
+    profiles = dashboard.wireless.getNetworkWirelessRfProfiles(network_id)
+    return json.dumps(profiles, indent=2)
+
+# Create wireless RF profile
+@mcp.tool()
+def create_wireless_rf_profile(network_id: str, name: str, band_selection_type: str, **kwargs) -> str:
+    """Create a wireless RF profile"""
+    result = dashboard.wireless.createNetworkWirelessRfProfile(network_id, name, bandSelectionType=band_selection_type, **kwargs)
+    return json.dumps(result, indent=2)
+
+# Get wireless channel utilization
+@mcp.tool()
+def get_wireless_channel_utilization(network_id: str, timespan: int = 86400) -> str:
+    """Get wireless channel utilization history"""
+    utilization = dashboard.wireless.getNetworkWirelessChannelUtilizationHistory(network_id, timespan=timespan)
+    return json.dumps(utilization, indent=2)
+
+# Get wireless signal quality
+@mcp.tool()
+def get_wireless_signal_quality(network_id: str, timespan: int = 86400) -> str:
+    """Get wireless signal quality history"""
+    quality = dashboard.wireless.getNetworkWirelessSignalQualityHistory(network_id, timespan=timespan)
+    return json.dumps(quality, indent=2)
+
+# Get wireless connection stats
+@mcp.tool()
+def get_wireless_connection_stats(network_id: str, timespan: int = 86400) -> str:
+    """Get wireless connection statistics"""
+    stats = dashboard.wireless.getNetworkWirelessConnectionStats(network_id, timespan=timespan)
+    return json.dumps(stats, indent=2)
+
+# Get wireless client connectivity events
+@mcp.tool()
+def get_wireless_client_connectivity_events(network_id: str, client_id: str, timespan: int = 86400) -> str:
+    """Get wireless client connectivity events"""
+    events = dashboard.wireless.getNetworkWirelessClientConnectivityEvents(network_id, client_id, timespan=timespan)
+    return json.dumps(events, indent=2)
+
+#######################
+# ADVANCED SWITCH TOOLS
+#######################
+
+# Get switch port statuses
+@mcp.tool()
+def get_switch_port_statuses(serial: str) -> str:
+    """Get switch port statuses"""
+    statuses = dashboard.switch.getDeviceSwitchPortsStatuses(serial)
+    return json.dumps(statuses, indent=2)
+
+# Cycle switch ports
+@mcp.tool()
+def cycle_switch_ports(serial: str, ports: list[str]) -> str:
+    """Cycle (restart) switch ports"""
+    result = dashboard.switch.cycleDeviceSwitchPorts(serial, ports)
+    return json.dumps(result, indent=2)
+
+# Get switch access control lists
+@mcp.tool()
+def get_switch_access_control_lists(network_id: str) -> str:
+    """Get switch access control lists"""
+    acls = dashboard.switch.getNetworkSwitchAccessControlLists(network_id)
+    return json.dumps(acls, indent=2)
+
+# Update switch access control lists
+@mcp.tool()
+def update_switch_access_control_lists(network_id: str, rules: list[dict]) -> str:
+    """Update switch access control lists"""
+    result = dashboard.switch.updateNetworkSwitchAccessControlLists(network_id, rules)
+    return json.dumps(result, indent=2)
+
+# Get switch QoS rules
+@mcp.tool()
+def get_switch_qos_rules(network_id: str) -> str:
+    """Get switch QoS rules"""
+    rules = dashboard.switch.getNetworkSwitchQosRules(network_id)
+    return json.dumps(rules, indent=2)
+
+# Create switch QoS rule
+@mcp.tool()
+def create_switch_qos_rule(network_id: str, vlan: int, protocol: str, src_port: int, src_port_range: str = None, dst_port: int = None, dst_port_range: str = None, dscp: int = None) -> str:
+    """Create a switch QoS rule"""
+    kwargs = {
+        'vlan': vlan,
+        'protocol': protocol,
+        'srcPort': src_port
+    }
+    if src_port_range:
+        kwargs['srcPortRange'] = src_port_range
+    if dst_port:
+        kwargs['dstPort'] = dst_port
+    if dst_port_range:
+        kwargs['dstPortRange'] = dst_port_range
+    if dscp:
+        kwargs['dscp'] = dscp
+    
+    result = dashboard.switch.createNetworkSwitchQosRule(network_id, **kwargs)
+    return json.dumps(result, indent=2)
+
+#######################
+# ADVANCED APPLIANCE TOOLS
+#######################
+
+# Get appliance VPN site-to-site status
+@mcp.tool()
+def get_appliance_vpn_site_to_site(network_id: str) -> str:
+    """Get appliance VPN site-to-site configuration"""
+    vpn = dashboard.appliance.getNetworkApplianceVpnSiteToSiteVpn(network_id)
+    return json.dumps(vpn, indent=2)
+
+# Update appliance VPN site-to-site
+@mcp.tool()
+def update_appliance_vpn_site_to_site(network_id: str, mode: str, hubs: list[dict] = None, subnets: list[dict] = None) -> str:
+    """Update appliance VPN site-to-site configuration"""
+    kwargs = {'mode': mode}
+    if hubs:
+        kwargs['hubs'] = hubs
+    if subnets:
+        kwargs['subnets'] = subnets
+    
+    result = dashboard.appliance.updateNetworkApplianceVpnSiteToSiteVpn(network_id, **kwargs)
+    return json.dumps(result, indent=2)
+
+# Get appliance content filtering
+@mcp.tool()
+def get_appliance_content_filtering(network_id: str) -> str:
+    """Get appliance content filtering settings"""
+    filtering = dashboard.appliance.getNetworkApplianceContentFiltering(network_id)
+    return json.dumps(filtering, indent=2)
+
+# Update appliance content filtering
+@mcp.tool()
+def update_appliance_content_filtering(network_id: str, allowed_urls: list[str] = None, blocked_urls: list[str] = None, blocked_url_patterns: list[str] = None, youtube_restricted_for_teenagers: bool = None, youtube_restricted_for_mature: bool = None) -> str:
+    """Update appliance content filtering settings"""
+    kwargs = {}
+    if allowed_urls:
+        kwargs['allowedUrls'] = allowed_urls
+    if blocked_urls:
+        kwargs['blockedUrls'] = blocked_urls
+    if blocked_url_patterns:
+        kwargs['blockedUrlPatterns'] = blocked_url_patterns
+    if youtube_restricted_for_teenagers is not None:
+        kwargs['youtubeRestrictedForTeenagers'] = youtube_restricted_for_teenagers
+    if youtube_restricted_for_mature is not None:
+        kwargs['youtubeRestrictedForMature'] = youtube_restricted_for_mature
+    
+    result = dashboard.appliance.updateNetworkApplianceContentFiltering(network_id, **kwargs)
+    return json.dumps(result, indent=2)
+
+# Get appliance security events
+@mcp.tool()
+def get_appliance_security_events(network_id: str, timespan: int = 86400) -> str:
+    """Get appliance security events"""
+    events = dashboard.appliance.getNetworkApplianceSecurityEvents(network_id, timespan=timespan)
+    return json.dumps(events, indent=2)
+
+# Get appliance traffic shaping
+@mcp.tool()
+def get_appliance_traffic_shaping(network_id: str) -> str:
+    """Get appliance traffic shaping settings"""
+    shaping = dashboard.appliance.getNetworkApplianceTrafficShaping(network_id)
+    return json.dumps(shaping, indent=2)
+
+# Update appliance traffic shaping
+@mcp.tool()
+def update_appliance_traffic_shaping(network_id: str, global_bandwidth_limits: dict = None) -> str:
+    """Update appliance traffic shaping settings"""
+    kwargs = {}
+    if global_bandwidth_limits:
+        kwargs['globalBandwidthLimits'] = global_bandwidth_limits
+    
+    result = dashboard.appliance.updateNetworkApplianceTrafficShaping(network_id, **kwargs)
+    return json.dumps(result, indent=2)
+
+#######################
+# CAMERA TOOLS
+#######################
+
+# Get camera analytics live
+@mcp.tool()
+def get_camera_analytics_live(serial: str) -> str:
+    """Get live camera analytics"""
+    analytics = dashboard.camera.getDeviceCameraAnalyticsLive(serial)
+    return json.dumps(analytics, indent=2)
+
+# Get camera analytics overview
+@mcp.tool()
+def get_camera_analytics_overview(serial: str, timespan: int = 86400) -> str:
+    """Get camera analytics overview"""
+    overview = dashboard.camera.getDeviceCameraAnalyticsOverview(serial, timespan=timespan)
+    return json.dumps(overview, indent=2)
+
+# Get camera analytics zones
+@mcp.tool()
+def get_camera_analytics_zones(serial: str) -> str:
+    """Get camera analytics zones"""
+    zones = dashboard.camera.getDeviceCameraAnalyticsZones(serial)
+    return json.dumps(zones, indent=2)
+
+# Generate camera snapshot
+@mcp.tool()
+def generate_camera_snapshot(serial: str, timestamp: str = None) -> str:
+    """Generate a camera snapshot"""
+    kwargs = {}
+    if timestamp:
+        kwargs['timestamp'] = timestamp
+    
+    result = dashboard.camera.generateDeviceCameraSnapshot(serial, **kwargs)
+    return json.dumps(result, indent=2)
+
+# Get camera sense
+@mcp.tool()
+def get_camera_sense(serial: str) -> str:
+    """Get camera sense configuration"""
+    sense = dashboard.camera.getDeviceCameraSense(serial)
+    return json.dumps(sense, indent=2)
+
+# Update camera sense
+@mcp.tool()
+def update_camera_sense(serial: str, sense_enabled: bool = None, mqtt_broker_id: str = None, audio_detection: dict = None) -> str:
+    """Update camera sense configuration"""
+    kwargs = {}
+    if sense_enabled is not None:
+        kwargs['senseEnabled'] = sense_enabled
+    if mqtt_broker_id:
+        kwargs['mqttBrokerId'] = mqtt_broker_id
+    if audio_detection:
+        kwargs['audioDetection'] = audio_detection
+    
+    result = dashboard.camera.updateDeviceCameraSense(serial, **kwargs)
+    return json.dumps(result, indent=2)
+
+#######################
+# NETWORK AUTOMATION TOOLS
+#######################
+
+# Create action batch
+@mcp.tool()
+def create_action_batch(org_id: str, actions: list[dict], confirmed: bool = True, synchronous: bool = False) -> str:
+    """Create an action batch for bulk operations"""
+    organization_id = org_id or MERAKI_ORG_ID
+    result = dashboard.organizations.createOrganizationActionBatch(organization_id, actions, confirmed=confirmed, synchronous=synchronous)
+    return json.dumps(result, indent=2)
+
+# Get action batch status
+@mcp.tool()
+def get_action_batch_status(org_id: str, batch_id: str) -> str:
+    """Get action batch status"""
+    organization_id = org_id or MERAKI_ORG_ID
+    status = dashboard.organizations.getOrganizationActionBatch(organization_id, batch_id)
+    return json.dumps(status, indent=2)
+
+# Get action batches
+@mcp.tool()
+def get_action_batches(org_id: str = None) -> str:
+    """Get all action batches for an organization"""
+    organization_id = org_id or MERAKI_ORG_ID
+    batches = dashboard.organizations.getOrganizationActionBatches(organization_id)
+    return json.dumps(batches, indent=2)
 
 # Define resources
 #Add a dynamic greeting resource
