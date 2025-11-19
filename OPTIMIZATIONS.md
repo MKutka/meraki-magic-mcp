@@ -126,11 +126,11 @@ API call fails → Retry #1 → Retry #2 → Success ✅
 Hit rate limit → Auto-wait 1 second → Retry → Success ✅
 ```
 
-## 4. Operation Type Labeling
+## 4. Enhanced Error Handling
 
-**Problem:** Hard to know which operations are safe (read-only) vs. risky (write).
+**Problem:** API failures and rate limits cause errors.
 
-**Solution:** All tools labeled with operation type.
+**Solution:** Built-in retry logic and rate limit handling.
 
 ### How It Works:
 - Tools labeled as `[READ]`, `[WRITE]`, or `[MISC]`
@@ -145,7 +145,169 @@ Hit rate limit → Auto-wait 1 second → Retry → Success ✅
 [WIRELESS] [READ] getNetworkWirelessSsids
 ```
 
-## 5. Configuration Visibility
+## 5. Response Size Management & File Caching
+
+**Problem:** Large API responses (e.g., VPN status with 300 items) fill up Claude's context window quickly, causing performance issues and context overflow.
+
+**Solution:** Automatic response size monitoring, pagination enforcement, and file-based caching for large responses.
+
+### How It Works:
+- **Token Estimation:** Automatically estimates response size in tokens
+- **Pagination Limits:** Enforces maximum items per page (default: 100)
+- **File Caching:** Large responses saved to JSON files automatically
+- **Truncated Responses:** Returns preview with metadata about cached full data
+- **Cache Management:** Tools to list, retrieve, and clear cached files
+
+### Benefits:
+- ✅ Prevents context window overflow
+- ✅ Faster Claude responses (smaller payloads)
+- ✅ Full data preserved in files for analysis
+- ✅ Automatic pagination control
+- ✅ Works with grep/jq/ack for file parsing
+
+### Configuration:
+```bash
+# In .env file
+ENABLE_FILE_CACHING=true         # Enable file caching (default: true)
+MAX_RESPONSE_TOKENS=5000         # Max tokens before truncation (default: 5000)
+MAX_PER_PAGE=100                 # Max items per page (default: 100)
+RESPONSE_CACHE_DIR=.meraki_cache # Cache directory (default: .meraki_cache)
+```
+
+### Example - Large Response:
+```
+# Request with large result set
+call_meraki_api(
+  section="appliance",
+  method="getOrganizationApplianceVpnStatuses",
+  parameters={"organizationId": "426512", "perPage": 300}
+)
+
+# Automatic handling:
+1. perPage reduced from 300 → 100 (enforced limit)
+2. Response ~25k tokens detected
+3. Full response saved to: .meraki_cache/appliance_getOrganizationApplianceVpnStatuses_a1b2c3d4_20250119_143022.json
+4. Truncated response returned:
+
+{
+  "_response_truncated": true,
+  "_reason": "Response too large (~25100 tokens)",
+  "_full_response_cached": ".meraki_cache/appliance_getOrganizationApplianceVpnStatuses_a1b2c3d4_20250119_143022.json",
+  "_total_items": 250,
+  "_showing": "preview",
+  "_preview": [
+    // First 3 items shown...
+  ],
+  "_hints": {
+    "reduce_page_size": "Use perPage parameter with value <= 100",
+    "access_full_data": "Full response saved to: .meraki_cache/...",
+    "parse_with": "Use 'cat <file> | jq' or open in text editor"
+  },
+  "_pagination_limited": true,
+  "_pagination_message": "Request modified: pagination limited to 100 items per page"
+}
+```
+
+### File Cache Management Tools:
+
+```bash
+# List all cached response files
+list_cached_responses
+
+Response:
+{
+  "cache_dir": ".meraki_cache",
+  "total_files": 5,
+  "files": [
+    {
+      "filename": "appliance_getOrganizationApplianceVpnStatuses_a1b2c3d4_20250119_143022.json",
+      "filepath": ".meraki_cache/appliance_getOrganizationApplianceVpnStatuses_a1b2c3d4_20250119_143022.json",
+      "size_bytes": 524288,
+      "size_kb": 512.0,
+      "modified": "2025-01-19T14:30:22"
+    }
+  ]
+}
+
+# Retrieve full cached response
+get_cached_response(filepath=".meraki_cache/appliance_getOrganizationApplianceVpnStatuses_a1b2c3d4_20250119_143022.json")
+
+Response: [Full untruncated data]
+
+# Clear old cached files (older than 24 hours)
+clear_cached_files(older_than_hours=24)
+
+Response:
+{
+  "deleted_count": 3,
+  "kept_count": 2,
+  "deleted_files": [...]
+}
+```
+
+### Using Cached Files with Command-Line Tools:
+
+```bash
+# Parse with jq
+cat .meraki_cache/appliance_getOrganizationApplianceVpnStatuses_*.json | jq '.data[].deviceStatus'
+
+# Search with grep
+grep -r "online" .meraki_cache/
+
+# Count items with jq
+cat .meraki_cache/appliance_*.json | jq '.data | length'
+
+# Extract specific fields
+cat .meraki_cache/appliance_*.json | jq '.data[] | {serial: .deviceSerial, status: .deviceStatus}'
+```
+
+### Adjusting Response Size Limits:
+
+```bash
+# More aggressive truncation (smaller context)
+MAX_RESPONSE_TOKENS=2000    # Truncate at ~2k tokens
+
+# Less aggressive (larger responses allowed)
+MAX_RESPONSE_TOKENS=10000   # Allow up to ~10k tokens
+
+# Disable file caching (return all data)
+ENABLE_FILE_CACHING=false   # Not recommended for large datasets
+```
+
+### Pagination Control:
+
+```bash
+# Stricter pagination limit
+MAX_PER_PAGE=50    # Limit to 50 items per page
+
+# More relaxed (use with caution)
+MAX_PER_PAGE=200   # Allow up to 200 items (may cause context issues)
+```
+
+### Real-World Impact:
+
+**Before Response Size Management:**
+```
+# Request: getOrganizationApplianceVpnStatuses with perPage=300
+→ Returns 25k token response
+→ Fills up Claude's context window
+→ Performance degradation
+→ Risk of context overflow errors
+```
+
+**After Response Size Management:**
+```
+# Same request
+→ Automatically reduced to perPage=100
+→ Response saved to file (512 KB)
+→ Returns 3-item preview (~500 tokens)
+→ Claude context preserved
+→ Full data accessible via file or get_cached_response
+```
+
+**Token Savings:** ~95% reduction in context usage (25k → ~500 tokens)
+
+## 6. Configuration Visibility
 
 **Problem:** Hard to know current MCP settings.
 
@@ -160,6 +322,10 @@ Response:
   "read_only_mode": false,
   "caching_enabled": true,
   "cache_ttl_seconds": 300,
+  "file_caching_enabled": true,
+  "max_response_tokens": 5000,
+  "max_per_page": 100,
+  "response_cache_dir": ".meraki_cache",
   "organization_id_configured": true,
   "api_key_configured": true,
   "total_tools": 804,
@@ -295,7 +461,9 @@ These optimizations make the MCP:
 - **Faster** - Caching reduces latency and API calls
 - **More reliable** - Auto-retry and rate limit handling
 - **Safer** - Read-only mode prevents accidents
-- **Smarter** - Automatic operation type detection
+- **Context-efficient** - Response size management prevents context overflow
+- **Smarter** - Automatic operation type detection and pagination control
 - **Transparent** - Config tool shows all settings
+- **Flexible** - File caching enables external tool integration (jq, grep, ack)
 
 All while maintaining 100% backward compatibility!

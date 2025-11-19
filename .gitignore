@@ -38,5 +38,8 @@ env/
 .DS_Store
 Thumbs.db
 
+# MCP Response Cache
+.meraki_cache/
+
 # Documentation
 ADDITIONAL_TOOLS_ROADMAP.md
