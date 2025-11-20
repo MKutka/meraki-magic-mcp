@@ -199,9 +199,12 @@ call_meraki_api(
     // First 3 items shown...
   ],
   "_hints": {
-    "reduce_page_size": "Use perPage parameter with value <= 100",
-    "access_full_data": "Full response saved to: .meraki_cache/...",
-    "parse_with": "Use 'cat <file> | jq' or open in text editor"
+    "reduce_page_size": "Reduce request: Use perPage parameter with value <= 100",
+    "access_via_mcp_paginated": "get_cached_response(filepath='...', offset=0, limit=10) - Returns 10 items at a time",
+    "access_via_cli_full": "cat ... | jq '.data' - View all data",
+    "search_via_cli": "cat ... | jq '.data[] | select(.field == \"value\")' - Search/filter",
+    "count_via_cli": "cat ... | jq '.data | length' - Count items",
+    "recommendation": "For large datasets, command-line tools (jq, grep) are recommended over MCP tools"
   },
   "_pagination_limited": true,
   "_pagination_message": "Request modified: pagination limited to 100 items per page"
@@ -229,10 +232,32 @@ Response:
   ]
 }
 
-# Retrieve full cached response
-get_cached_response(filepath=".meraki_cache/appliance_getOrganizationApplianceVpnStatuses_a1b2c3d4_20250119_143022.json")
+# Retrieve cached response (paginated to avoid context overflow)
+get_cached_response(
+  filepath=".meraki_cache/appliance_getOrganizationApplianceVpnStatuses_a1b2c3d4_20250119_143022.json",
+  offset=0,
+  limit=10
+)
 
-Response: [Full untruncated data]
+Response:
+{
+  "_paginated": true,
+  "_total_items": 250,
+  "_offset": 0,
+  "_limit": 10,
+  "_returned_items": 10,
+  "_has_more": true,
+  "_next_offset": 10,
+  "_hints": {
+    "next_page": "get_cached_response(filepath='...', offset=10, limit=10)",
+    "full_data_cli": "cat ... | jq '.data'",
+    ...
+  },
+  "data": [/* 10 items */]
+}
+
+# Get next page
+get_cached_response(filepath="...", offset=10, limit=10)
 
 # Clear old cached files (older than 24 hours)
 clear_cached_files(older_than_hours=24)
@@ -245,7 +270,13 @@ Response:
 }
 ```
 
-### Using Cached Files with Command-Line Tools:
+### Using Cached Files with Command-Line Tools (Recommended):
+
+**Why CLI tools are better for large datasets:**
+- No context window limitations
+- Faster processing
+- More powerful querying (jq, grep, awk)
+- Can pipe to other tools
 
 ```bash
 # Parse with jq
@@ -259,6 +290,22 @@ cat .meraki_cache/appliance_*.json | jq '.data | length'
 
 # Extract specific fields
 cat .meraki_cache/appliance_*.json | jq '.data[] | {serial: .deviceSerial, status: .deviceStatus}'
+
+# Filter by condition
+cat .meraki_cache/appliance_*.json | jq '.data[] | select(.vpnMode == "spoke")'
+
+# Get specific indices (like pagination)
+cat .meraki_cache/appliance_*.json | jq '.data[10:20]'  # Items 10-20
+```
+
+**MCP Pagination (Alternative for small queries):**
+```bash
+# Use get_cached_response with pagination for interactive exploration
+# Good for: Spot checks, exploring structure, small samples
+# Not recommended for: Processing full datasets, complex filtering
+
+get_cached_response(filepath="...", offset=0, limit=10)   # First 10
+get_cached_response(filepath="...", offset=10, limit=10)  # Next 10
 ```
 
 ### Adjusting Response Size Limits:

@@ -131,9 +131,12 @@ def create_truncated_response(data: Any, filepath: str, section: str, method: st
         "_showing": "preview" if isinstance(data, list) else "summary",
         "_preview": preview_items,
         "_hints": {
-            "reduce_page_size": f"Use perPage parameter with value <= {MAX_PER_PAGE}",
-            "access_full_data": f"Full response saved to: {filepath}",
-            "parse_with": f"Use 'cat {filepath} | jq' or open in text editor"
+            "reduce_page_size": f"Reduce request: Use perPage parameter with value <= {MAX_PER_PAGE}",
+            "access_via_mcp_paginated": f"get_cached_response(filepath='{filepath}', offset=0, limit=10) - Returns 10 items at a time",
+            "access_via_cli_full": f"cat {filepath} | jq '.data' - View all data",
+            "search_via_cli": f"cat {filepath} | jq '.data[] | select(.field == \"value\")' - Search/filter",
+            "count_via_cli": f"cat {filepath} | jq '.data | length' - Count items",
+            "recommendation": "For large datasets, command-line tools (jq, grep) are recommended over MCP tools"
         },
         "section": section,
         "method": method,
@@ -612,14 +615,28 @@ async def get_mcp_config() -> str:
     }, indent=2)
 
 @mcp.tool()
-async def get_cached_response(filepath: str) -> str:
+async def get_cached_response(filepath: str, offset: int = 0, limit: int = 10) -> str:
     """
-    Retrieve a cached response from a file
+    Retrieve a paginated slice of a cached response from a file
+
+    IMPORTANT: This tool returns paginated data to avoid context overflow.
+    For full data access, use command-line tools: cat <filepath> | jq
 
     Args:
         filepath: Path to the cached response file (from _full_response_cached field)
+        offset: Starting index for pagination (default: 0)
+        limit: Maximum number of items to return (default: 10, max: 100)
+
+    Examples:
+        get_cached_response(filepath="...", offset=0, limit=10)   # First 10 items
+        get_cached_response(filepath="...", offset=10, limit=10)  # Next 10 items
+        get_cached_response(filepath="...", offset=0, limit=100)  # First 100 items
     """
     try:
+        # Enforce maximum limit
+        if limit > 100:
+            limit = 100
+
         data = load_response_from_file(filepath)
         if data is None:
             return json.dumps({
@@ -627,7 +644,49 @@ async def get_cached_response(filepath: str) -> str:
                 "filepath": filepath
             }, indent=2)
 
-        return json.dumps(data, indent=2)
+        # Handle list pagination
+        if isinstance(data, list):
+            total_items = len(data)
+            paginated_data = data[offset:offset + limit]
+
+            return json.dumps({
+                "_paginated": True,
+                "_total_items": total_items,
+                "_offset": offset,
+                "_limit": limit,
+                "_returned_items": len(paginated_data),
+                "_has_more": (offset + limit) < total_items,
+                "_next_offset": offset + limit if (offset + limit) < total_items else None,
+                "_hints": {
+                    "next_page": f"get_cached_response(filepath='{filepath}', offset={offset + limit}, limit={limit})" if (offset + limit) < total_items else "No more pages",
+                    "full_data_cli": f"cat {filepath} | jq '.data'",
+                    "search_cli": f"cat {filepath} | jq '.data[] | select(.field == \"value\")'",
+                    "count_cli": f"cat {filepath} | jq '.data | length'"
+                },
+                "data": paginated_data
+            }, indent=2)
+        else:
+            # Non-list data - check size and potentially truncate
+            data_json = json.dumps(data)
+            estimated_tokens = estimate_token_count(data_json)
+
+            if estimated_tokens > MAX_RESPONSE_TOKENS:
+                return json.dumps({
+                    "_warning": "Response too large for MCP context",
+                    "_estimated_tokens": estimated_tokens,
+                    "_max_allowed_tokens": MAX_RESPONSE_TOKENS,
+                    "_recommendation": "Use command-line tools to access this data",
+                    "_hints": {
+                        "view_all": f"cat {filepath} | jq '.data'",
+                        "pretty_print": f"cat {filepath} | jq '.'",
+                        "extract_field": f"cat {filepath} | jq '.data.fieldName'",
+                        "search": f"grep 'search-term' {filepath}"
+                    },
+                    "_preview": str(data)[:500] + "..." if len(str(data)) > 500 else data
+                }, indent=2)
+
+            return json.dumps(data, indent=2)
+
     except Exception as e:
         return json.dumps({
             "error": str(e),
