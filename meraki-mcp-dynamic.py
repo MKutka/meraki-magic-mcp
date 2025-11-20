@@ -8,6 +8,7 @@ import hashlib
 from typing import Any, Dict, Optional
 from datetime import datetime, timedelta
 from mcp.server.fastmcp import FastMCP
+from pydantic import Field
 from dotenv import load_dotenv
 from pathlib import Path
 
@@ -339,7 +340,18 @@ async def call_meraki_method(section: str, method: str, **params) -> str:
     return await to_async(_call_meraki_method_internal)(section, method, params)
 
 @mcp.tool()
-async def call_meraki_api(section: str, method: str, parameters: dict = None) -> str:
+async def call_meraki_api(
+    section: str,
+    method: str,
+    parameters: Dict[str, Any] = Field(
+        default_factory=dict,
+        json_schema_extra={
+            'type': 'object',
+            'properties': {},
+            'additionalProperties': True
+        }
+    )
+) -> str:
     """
     Call any Meraki API method - provides access to all 804+ endpoints
 
@@ -353,11 +365,8 @@ async def call_meraki_api(section: str, method: str, parameters: dict = None) ->
         call_meraki_api(section="wireless", method="updateNetworkWirelessSsid", parameters={"networkId": "L_123", "number": "0", "name": "NewSSID", "enabled": True})
         call_meraki_api(section="appliance", method="getNetworkApplianceFirewallL3FirewallRules", parameters={"networkId": "L_123"})
     """
-    # Use empty dict if parameters not provided
-    params = parameters if parameters is not None else {}
-
-    # Call internal method
-    return await to_async(_call_meraki_method_internal)(section, method, params)
+    # Call internal method (parameters is always a dict due to default_factory)
+    return await to_async(_call_meraki_method_internal)(section, method, parameters)
 
 ###################
 # MOST COMMON TOOLS (Pre-registered for convenience)
