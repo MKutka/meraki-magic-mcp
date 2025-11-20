@@ -216,7 +216,7 @@ async def call_meraki_method(section: str, method: str, **params) -> str:
     return await to_async(_call_meraki_method_internal)(section, method, params)
 
 @mcp.tool()
-async def call_meraki_api(section: str, method: str, parameters: dict = None) -> str:
+async def call_meraki_api(section: str, method: str, parameters: Optional[Dict[str, Any]] = None) -> str:
     """
     Call any Meraki API method - provides access to all 804+ endpoints
 
