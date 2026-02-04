@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 
 # Load environment variables from .env file
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
 # Create an MCP server
 mcp = FastMCP("Meraki Magic MCP - Full API")
@@ -29,7 +29,8 @@ READ_ONLY_MODE = os.getenv("READ_ONLY_MODE", "false").lower() == "true"
 MAX_RESPONSE_TOKENS = int(os.getenv("MAX_RESPONSE_TOKENS", "5000"))  # Max tokens in response
 MAX_PER_PAGE = int(os.getenv("MAX_PER_PAGE", "100"))  # Max items per page for paginated endpoints
 ENABLE_FILE_CACHING = os.getenv("ENABLE_FILE_CACHING", "true").lower() == "true"
-RESPONSE_CACHE_DIR = os.getenv("RESPONSE_CACHE_DIR", ".meraki_cache")
+_SCRIPT_DIR = Path(__file__).resolve().parent
+RESPONSE_CACHE_DIR = os.getenv("RESPONSE_CACHE_DIR", str(_SCRIPT_DIR / ".meraki_cache"))
 
 # Create cache directory if it doesn't exist
 if ENABLE_FILE_CACHING:
@@ -473,7 +474,7 @@ async def updateDeviceSwitchPort(serial: str, portId: str, name: str = None, tag
 
     return await call_meraki_method("switch", "updateDeviceSwitchPort", **params)
 
-print("Registered hybrid MCP: 12 common tools + call_meraki_api for full API access (804+ methods)")
+print("Registered hybrid MCP: 12 common tools + call_meraki_api for full API access (804+ methods)", file=__import__('sys').stderr)
 
 ###################
 # DISCOVERY TOOLS
@@ -789,4 +790,4 @@ async def clear_cached_files(older_than_hours: int = 24) -> str:
 
 # Execute and return the stdio output
 if __name__ == "__main__":
-    mcp.run()
+    mcp.run(transport="stdio")

@@ -33,6 +33,7 @@ env/
 .vscode/
 *.swp
 *.swo
+.gemini
 
 # OS
 .DS_Store
