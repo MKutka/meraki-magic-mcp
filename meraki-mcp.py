@@ -7,9 +7,10 @@ from typing import Dict, List, Optional, Any, TypedDict, Union, Callable
 from pydantic import BaseModel, Field
 from mcp.server.fastmcp import FastMCP
 from dotenv import load_dotenv
+from pathlib import Path
 
 # Load environment variables from .env file
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
 # Create an MCP server
 mcp = FastMCP("Meraki Magic MCP")
@@ -1005,4 +1006,4 @@ def greeting(name: str) -> str:
 
 #execute and return the stdio output
 if __name__ == "__main__":
-    mcp.run()
+    mcp.run(transport="stdio")
