@@ -1,8 +1,3 @@
-Perfect idea — this is exactly the kind of debugging trail that should live in GitHub.
-
-Below is a clean, structured **GitHub Issue write-up** you can paste directly into your repo.
-
----
 
 # 🐛 MCP Server Fails in Claude Desktop on macOS (Permissions + Read-Only FS Issues)
 
