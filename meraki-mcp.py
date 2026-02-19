@@ -19,8 +19,19 @@ mcp = FastMCP("Meraki Magic MCP")
 MERAKI_API_KEY = os.getenv("MERAKI_API_KEY")
 MERAKI_ORG_ID = os.getenv("MERAKI_ORG_ID")
 
+if not MERAKI_API_KEY:
+    import sys
+    print("FATAL: MERAKI_API_KEY is not set. Add it to .env or the environment.", file=sys.stderr)
+    sys.exit(1)
+
 # Initialize Meraki API client using Meraki SDK
-dashboard = meraki.DashboardAPI(api_key=MERAKI_API_KEY, suppress_logging=True, caller="meraki-magic-mcp")
+dashboard = meraki.DashboardAPI(
+    api_key=MERAKI_API_KEY,
+    suppress_logging=True,
+    caller="meraki-magic-mcp",
+    maximum_retries=3,
+    wait_on_rate_limit=True,
+)
 
 ###################
 # ASYNC UTILITIES
@@ -38,12 +49,12 @@ def to_async(func: Callable) -> Callable:
     """
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(
-            None,
-            lambda: func(*args, **kwargs)
-        )
+        return await asyncio.to_thread(func, *args, **kwargs)
     return wrapper
+
+def _build_kwargs(**params) -> dict:
+    """Return only non-None keyword arguments. Correctly handles False and 0."""
+    return {k: v for k, v in params.items() if v is not None}
 
 # Create async versions of commonly used Meraki API methods
 async_get_organizations = to_async(dashboard.organizations.getOrganizations)
@@ -289,7 +300,7 @@ def update_network(network_id: str, update_data: NetworkUpdateSchema) -> str:
         update_data: Network properties to update (name, timeZone, tags, enrollmentString, notes)
     """
     # Convert the Pydantic model to a dictionary and filter out None values
-    update_dict = {k: v for k, v in update_data.dict().items() if v is not None}
+    update_dict = update_data.model_dump(exclude_none=True)
 
     result = dashboard.networks.updateNetwork(network_id, **update_dict)
     return json.dumps(result, indent=2)
@@ -337,10 +348,8 @@ async def get_client_policy(network_id: str, client_id: str) -> str:
     Returns:
         str: JSON-formatted client policy.
     """
-    loop = asyncio.get_event_loop()
-    policy = await loop.run_in_executor(
-        None,
-        lambda: dashboard.networks.getNetworkClientPolicy(network_id, client_id)
+    policy = await asyncio.to_thread(
+        dashboard.networks.getNetworkClientPolicy, network_id, client_id
     )
     return json.dumps(policy, indent=2)
 
@@ -387,7 +396,7 @@ async def update_device(serial: str, device_settings: DeviceUpdateSchema) -> str
         Confirmation of the update with the new settings
     """
     # Convert the Pydantic model to a dictionary and filter out None values
-    update_dict = {k: v for k, v in device_settings.dict().items() if v is not None}
+    update_dict = device_settings.model_dump(exclude_none=True)
 
     await async_update_device(serial, **update_dict)
 
@@ -410,10 +419,10 @@ def claim_devices(network_id: str, serials: list[str]) -> str:
 
 # Remove device from network
 @mcp.tool()
-def remove_device(serial: str) -> str:
-    """Remove a device from its network"""
-    dashboard.networks.removeNetworkDevices(serial)
-    return f"Device {serial} removed from network"
+def remove_device(network_id: str, serial: str) -> str:
+    """Remove a device from a network"""
+    dashboard.networks.removeNetworkDevices(network_id, serial)
+    return f"Device {serial} removed from network {network_id}"
 
 # Reboot device
 @mcp.tool()
@@ -469,7 +478,7 @@ async def update_wireless_ssid(network_id: str, ssid_number: str, ssid_settings:
         The updated SSID configuration
     """
     # Convert the Pydantic model to a dictionary and filter out None values
-    update_dict = {k: v for k, v in ssid_settings.dict().items() if v is not None}
+    update_dict = ssid_settings.model_dump(exclude_none=True)
 
     result = await async_update_wireless_ssid(network_id, ssid_number, **update_dict)
     return json.dumps(result, indent=2)
@@ -498,16 +507,7 @@ def get_switch_ports(serial: str) -> str:
 @mcp.tool()
 def update_switch_port(serial: str, port_id: str, name: str = None, tags: list[str] = None, enabled: bool = None, vlan: int = None) -> str:
     """Update a switch port"""
-    kwargs = {}
-    if name:
-        kwargs['name'] = name
-    if tags:
-        kwargs['tags'] = tags
-    if enabled is not None:
-        kwargs['enabled'] = enabled
-    if vlan:
-        kwargs['vlan'] = vlan
-
+    kwargs = _build_kwargs(name=name, tags=tags, enabled=enabled, vlan=vlan)
     result = dashboard.switch.updateDeviceSwitchPort(serial, port_id, **kwargs)
     return json.dumps(result, indent=2)
 
@@ -570,7 +570,7 @@ def update_firewall_rules(network_id: str, rules: List[FirewallRule]) -> str:
         The updated firewall rules configuration
     """
     # Convert the list of Pydantic models to a list of dictionaries
-    rules_dict = [rule.dict(exclude_none=True) for rule in rules]
+    rules_dict = [rule.model_dump(exclude_none=True) for rule in rules]
 
     result = dashboard.appliance.updateNetworkApplianceFirewallL3FirewallRules(network_id, rules=rules_dict)
     return json.dumps(result, indent=2)
@@ -581,7 +581,7 @@ def update_firewall_rules(network_id: str, rules: List[FirewallRule]) -> str:
 
 # Get camera video settings
 @mcp.tool()
-def get_camera_video_settings(network_id: str, serial: str) -> str:
+def get_camera_video_settings(serial: str) -> str:
     """Get video settings for a camera"""
     settings = dashboard.camera.getDeviceCameraVideoSettings(serial)
     return json.dumps(settings, indent=2)
@@ -822,17 +822,14 @@ def create_switch_qos_rule(network_id: str, vlan: int, protocol: str, src_port: 
     kwargs = {
         'vlan': vlan,
         'protocol': protocol,
-        'srcPort': src_port
+        'srcPort': src_port,
+        **_build_kwargs(
+            srcPortRange=src_port_range,
+            dstPort=dst_port,
+            dstPortRange=dst_port_range,
+            dscp=dscp,
+        )
     }
-    if src_port_range:
-        kwargs['srcPortRange'] = src_port_range
-    if dst_port:
-        kwargs['dstPort'] = dst_port
-    if dst_port_range:
-        kwargs['dstPortRange'] = dst_port_range
-    if dscp:
-        kwargs['dscp'] = dscp
-    
     result = dashboard.switch.createNetworkSwitchQosRule(network_id, **kwargs)
     return json.dumps(result, indent=2)
 
@@ -851,12 +848,7 @@ def get_appliance_vpn_site_to_site(network_id: str) -> str:
 @mcp.tool()
 def update_appliance_vpn_site_to_site(network_id: str, mode: str, hubs: list[dict] = None, subnets: list[dict] = None) -> str:
     """Update appliance VPN site-to-site configuration"""
-    kwargs = {'mode': mode}
-    if hubs:
-        kwargs['hubs'] = hubs
-    if subnets:
-        kwargs['subnets'] = subnets
-    
+    kwargs = {'mode': mode, **_build_kwargs(hubs=hubs, subnets=subnets)}
     result = dashboard.appliance.updateNetworkApplianceVpnSiteToSiteVpn(network_id, **kwargs)
     return json.dumps(result, indent=2)
 

@@ -5,6 +5,7 @@ import asyncio
 import functools
 import inspect
 import hashlib
+import threading
 from typing import Any, Dict, Optional
 from datetime import datetime, timedelta
 from mcp.server.fastmcp import FastMCP
@@ -21,6 +22,12 @@ mcp = FastMCP("Meraki Magic MCP - Full API")
 # Configuration
 MERAKI_API_KEY = os.getenv("MERAKI_API_KEY")
 MERAKI_ORG_ID = os.getenv("MERAKI_ORG_ID")
+
+if not MERAKI_API_KEY:
+    import sys
+    print("FATAL: MERAKI_API_KEY is not set. Add it to .env or the environment.", file=sys.stderr)
+    sys.exit(1)
+
 ENABLE_CACHING = os.getenv("ENABLE_CACHING", "true").lower() == "true"
 CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "300"))  # 5 minutes default
 READ_ONLY_MODE = os.getenv("READ_ONLY_MODE", "false").lower() == "true"
@@ -49,31 +56,43 @@ dashboard = meraki.DashboardAPI(
 ###################
 
 class SimpleCache:
-    """Simple in-memory cache with TTL"""
+    """Simple in-memory cache with TTL. Thread-safe via threading.Lock."""
     def __init__(self):
+        self._lock = threading.Lock()
         self.cache = {}
         self.timestamps = {}
 
     def get(self, key: str) -> Optional[Any]:
         """Get cached value if not expired"""
-        if key in self.cache:
-            if datetime.now() - self.timestamps[key] < timedelta(seconds=CACHE_TTL_SECONDS):
-                return self.cache[key]
-            else:
-                # Expired, remove
-                del self.cache[key]
-                del self.timestamps[key]
-        return None
+        with self._lock:
+            if key in self.cache:
+                if datetime.now() - self.timestamps[key] < timedelta(seconds=CACHE_TTL_SECONDS):
+                    return self.cache[key]
+                else:
+                    # Expired, remove
+                    del self.cache[key]
+                    del self.timestamps[key]
+            return None
 
     def set(self, key: str, value: Any):
         """Set cached value"""
-        self.cache[key] = value
-        self.timestamps[key] = datetime.now()
+        with self._lock:
+            self.cache[key] = value
+            self.timestamps[key] = datetime.now()
 
     def clear(self):
         """Clear all cache"""
-        self.cache.clear()
-        self.timestamps.clear()
+        with self._lock:
+            self.cache.clear()
+            self.timestamps.clear()
+
+    def invalidate(self, prefix: str):
+        """Remove all cache entries whose key starts with the given prefix."""
+        with self._lock:
+            keys_to_delete = [k for k in self.cache if k.startswith(prefix)]
+            for k in keys_to_delete:
+                del self.cache[k]
+                del self.timestamps[k]
 
     def stats(self) -> Dict:
         """Get cache statistics"""
@@ -111,12 +130,28 @@ def save_response_to_file(data: Any, section: str, method: str, params: Dict) ->
 
     return filepath
 
+def _validate_cache_filepath(filepath: str) -> str:
+    """Resolve filepath and confirm it is inside RESPONSE_CACHE_DIR.
+    Returns the resolved absolute path string.
+    Raises ValueError if the path escapes the cache directory.
+    """
+    cache_root = Path(RESPONSE_CACHE_DIR).resolve()
+    resolved = Path(filepath).resolve()
+    if not str(resolved).startswith(str(cache_root) + os.sep) and resolved != cache_root:
+        raise ValueError(
+            f"filepath must be inside the cache directory ({cache_root})"
+        )
+    return str(resolved)
+
 def load_response_from_file(filepath: str) -> Any:
     """Load cached response from file"""
     try:
-        with open(filepath, 'r') as f:
+        safe_filepath = _validate_cache_filepath(filepath)
+        with open(safe_filepath, 'r') as f:
             cached = json.load(f)
             return cached.get('data')
+    except ValueError:
+        return None
     except Exception as e:
         return None
 
@@ -167,11 +202,7 @@ def to_async(func):
     """Convert a synchronous function to an asynchronous function"""
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(
-            None,
-            lambda: func(*args, **kwargs)
-        )
+        return await asyncio.to_thread(func, *args, **kwargs)
     return wrapper
 
 ###################
@@ -209,11 +240,12 @@ def is_write_operation(method_name: str) -> bool:
     return any(method_name.startswith(prefix) for prefix in WRITE_PREFIXES)
 
 def create_cache_key(section: str, method: str, kwargs: Dict) -> str:
-    """Create a cache key from method call"""
-    # Sort kwargs for consistent keys
+    """Create a cache key from method call.
+    Format: '<section>::<md5hash>' so invalidate(section) clears all related entries.
+    """
     sorted_kwargs = json.dumps(kwargs, sort_keys=True)
-    key_string = f"{section}_{method}_{sorted_kwargs}"
-    return hashlib.md5(key_string.encode()).hexdigest()
+    key_hash = hashlib.md5(f"{section}_{method}_{sorted_kwargs}".encode()).hexdigest()
+    return f"{section}::{key_hash}"
 
 ###################
 # GENERIC API CALLER - Provides access to ALL 804+ endpoints
@@ -281,6 +313,10 @@ def _call_meraki_method_internal(section: str, method: str, params: dict) -> str
 
         # Call the method
         result = method_func(**params)
+
+        # Invalidate cached read results for this section after any write operation
+        if ENABLE_CACHING and is_write:
+            cache.invalidate(section)
 
         # Check response size and handle large responses
         result_json = json.dumps(result)
@@ -442,39 +478,49 @@ async def getDeviceSwitchPorts(serial: str) -> str:
     return await call_meraki_method("switch", "getDeviceSwitchPorts", serial=serial)
 
 @mcp.tool()
-async def updateDeviceSwitchPort(serial: str, portId: str, name: str = None, tags: str = None, enabled: bool = None,
-                                  poeEnabled: bool = None, type: str = None, vlan: int = None, voiceVlan: int = None,
-                                  allowedVlans: str = None, isolationEnabled: bool = None, rstpEnabled: bool = None,
-                                  stpGuard: str = None, linkNegotiation: str = None, portScheduleId: str = None,
-                                  udld: str = None, accessPolicyType: str = None, accessPolicyNumber: int = None,
-                                  macAllowList: str = None, stickyMacAllowList: str = None,
-                                  stickyMacAllowListLimit: int = None, stormControlEnabled: bool = None) -> str:
-    """Update switch port configuration"""
-    params = {"serial": serial, "portId": portId}
-    if name is not None: params['name'] = name
-    if tags is not None: params['tags'] = tags
-    if enabled is not None: params['enabled'] = enabled
-    if poeEnabled is not None: params['poeEnabled'] = poeEnabled
-    if type is not None: params['type'] = type
-    if vlan is not None: params['vlan'] = vlan
-    if voiceVlan is not None: params['voiceVlan'] = voiceVlan
-    if allowedVlans is not None: params['allowedVlans'] = allowedVlans
-    if isolationEnabled is not None: params['isolationEnabled'] = isolationEnabled
-    if rstpEnabled is not None: params['rstpEnabled'] = rstpEnabled
-    if stpGuard is not None: params['stpGuard'] = stpGuard
-    if linkNegotiation is not None: params['linkNegotiation'] = linkNegotiation
-    if portScheduleId is not None: params['portScheduleId'] = portScheduleId
-    if udld is not None: params['udld'] = udld
-    if accessPolicyType is not None: params['accessPolicyType'] = accessPolicyType
-    if accessPolicyNumber is not None: params['accessPolicyNumber'] = accessPolicyNumber
-    if macAllowList is not None: params['macAllowList'] = macAllowList
-    if stickyMacAllowList is not None: params['stickyMacAllowList'] = stickyMacAllowList
-    if stickyMacAllowListLimit is not None: params['stickyMacAllowListLimit'] = stickyMacAllowListLimit
-    if stormControlEnabled is not None: params['stormControlEnabled'] = stormControlEnabled
-
+async def updateDeviceSwitchPort(
+    serial: str,
+    portId: str,
+    name: str = None,
+    enabled: bool = None,
+    poeEnabled: bool = None,
+    type: str = None,
+    vlan: int = None,
+    voiceVlan: int = None,
+) -> str:
+    """Update switch port configuration. For the full parameter set use call_meraki_api."""
+    params = {
+        "serial": serial,
+        "portId": portId,
+        **{k: v for k, v in dict(
+            name=name, enabled=enabled, poeEnabled=poeEnabled,
+            type=type, vlan=vlan, voiceVlan=voiceVlan
+        ).items() if v is not None}
+    }
     return await call_meraki_method("switch", "updateDeviceSwitchPort", **params)
 
 print("Registered hybrid MCP: 12 common tools + call_meraki_api for full API access (804+ methods)", file=__import__('sys').stderr)
+
+###################
+# METHOD INDEX (built once at startup - SDK structure is static)
+###################
+
+def _build_method_index() -> Dict:
+    """Build a complete index of all callable SDK methods, grouped by section."""
+    index = {}
+    for section_name in SDK_SECTIONS:
+        if not hasattr(dashboard, section_name):
+            continue
+        section_obj = getattr(dashboard, section_name)
+        methods = sorted(
+            m for m in dir(section_obj)
+            if not m.startswith('_') and callable(getattr(section_obj, m))
+        )
+        if methods:
+            index[section_name] = methods
+    return index
+
+_METHOD_INDEX = _build_method_index()
 
 ###################
 # DISCOVERY TOOLS
@@ -488,21 +534,19 @@ async def list_all_methods(section: str = None) -> str:
     Args:
         section: Optional section filter (organizations, networks, wireless, switch, appliance, etc.)
     """
-    methods_by_section = {}
-    sections_to_check = [section] if section else SDK_SECTIONS
-
-    for section_name in sections_to_check:
-        if not hasattr(dashboard, section_name):
-            continue
-
-        section_obj = getattr(dashboard, section_name)
-        methods = [m for m in dir(section_obj)
-                  if not m.startswith('_') and callable(getattr(section_obj, m))]
-        methods_by_section[section_name] = sorted(methods)
+    if section:
+        if section not in _METHOD_INDEX:
+            return json.dumps({
+                "error": f"Section '{section}' not found",
+                "available_sections": list(_METHOD_INDEX.keys())
+            }, indent=2)
+        sections_to_show = {section: _METHOD_INDEX[section]}
+    else:
+        sections_to_show = _METHOD_INDEX
 
     return json.dumps({
-        "sections": methods_by_section,
-        "total_methods": sum(len(v) for v in methods_by_section.values()),
+        "sections": sections_to_show,
+        "total_methods": sum(len(v) for v in sections_to_show.values()),
         "usage": "Use call_meraki_api(section='...', method='...', parameters='{...}') to call any method"
     }, indent=2)
 
@@ -515,20 +559,11 @@ async def search_methods(keyword: str) -> str:
         keyword: Search term (e.g., 'admin', 'firewall', 'ssid', 'event')
     """
     keyword_lower = keyword.lower()
-    results = {}
-
-    for section_name in SDK_SECTIONS:
-        if not hasattr(dashboard, section_name):
-            continue
-
-        section_obj = getattr(dashboard, section_name)
-        methods = [m for m in dir(section_obj)
-                  if not m.startswith('_')
-                  and callable(getattr(section_obj, m))
-                  and keyword_lower in m.lower()]
-
-        if methods:
-            results[section_name] = sorted(methods)
+    results = {
+        section: [m for m in methods if keyword_lower in m.lower()]
+        for section, methods in _METHOD_INDEX.items()
+    }
+    results = {k: v for k, v in results.items() if v}
 
     return json.dumps({
         "keyword": keyword,
@@ -646,6 +681,15 @@ async def get_cached_response(filepath: str, offset: int = 0, limit: int = 10) -
         # Enforce maximum limit
         if limit > 100:
             limit = 100
+
+        # Validate path is inside cache directory before any file access
+        try:
+            _validate_cache_filepath(filepath)
+        except ValueError as e:
+            return json.dumps({
+                "error": "Invalid filepath",
+                "message": str(e)
+            }, indent=2)
 
         data = load_response_from_file(filepath)
         if data is None:
