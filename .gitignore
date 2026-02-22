@@ -42,5 +42,8 @@ Thumbs.db
 # MCP Response Cache
 .meraki_cache/
 
+# Docker
+docker-compose.override.yml
+
 # Documentation
 ADDITIONAL_TOOLS_ROADMAP.md

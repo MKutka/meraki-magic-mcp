@@ -11,7 +11,7 @@ The **dynamic MCP doesn't use the Postman collection** - it uses Python introspe
 ## Quick Update
 
 ```bash
-cd /Users/apavlock/meraki-magic-mcp
+cd /path/to/meraki-magic-mcp
 source .venv/bin/activate
 pip install --upgrade meraki
 ```
@@ -30,7 +30,7 @@ I've created `update_meraki.py` that:
 ### Run the Update Checker
 
 ```bash
-cd /Users/apavlock/meraki-magic-mcp
+cd /path/to/meraki-magic-mcp
 source .venv/bin/activate
 python3 update_meraki.py
 ```
@@ -48,7 +48,7 @@ It will:
 
 Run the update checker once a month:
 ```bash
-cd /Users/apavlock/meraki-magic-mcp && source .venv/bin/activate && python3 update_meraki.py
+cd /path/to/meraki-magic-mcp && source .venv/bin/activate && python3 update_meraki.py
 ```
 
 ### Option 2: Cron Job (Advanced)
@@ -59,7 +59,7 @@ Add to your crontab to check weekly:
 crontab -e
 
 # Add this line (checks every Monday at 9 AM)
-0 9 * * 1 cd /Users/apavlock/meraki-magic-mcp && .venv/bin/python3 update_meraki.py
+0 9 * * 1 cd /path/to/meraki-magic-mcp && .venv/bin/python3 update_meraki.py
 ```
 
 ### Option 3: Launchd (macOS native)
@@ -81,8 +81,8 @@ nano ~/Library/LaunchAgents/com.meraki.mcp.update.plist
     <string>com.meraki.mcp.update</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/apavlock/meraki-magic-mcp/.venv/bin/python3</string>
-        <string>/Users/apavlock/meraki-magic-mcp/update_meraki.py</string>
+        <string>/path/to/meraki-magic-mcp/.venv/bin/python3</string>
+        <string>/path/to/meraki-magic-mcp/update_meraki.py</string>
     </array>
     <key>StartCalendarInterval</key>
     <dict>
@@ -94,9 +94,9 @@ nano ~/Library/LaunchAgents/com.meraki.mcp.update.plist
         <integer>1</integer>
     </dict>
     <key>StandardOutPath</key>
-    <string>/Users/apavlock/meraki-magic-mcp/update.log</string>
+    <string>/path/to/meraki-magic-mcp/update.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/apavlock/meraki-magic-mcp/update_error.log</string>
+    <string>/path/to/meraki-magic-mcp/update_error.log</string>
 </dict>
 </plist>
 ```
@@ -185,7 +185,7 @@ The update script will tell you:
 
 ### "No module named meraki"
 ```bash
-cd /Users/apavlock/meraki-magic-mcp
+cd /path/to/meraki-magic-mcp
 source .venv/bin/activate
 pip install meraki
 ```

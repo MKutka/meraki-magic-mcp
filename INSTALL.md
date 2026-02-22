@@ -10,6 +10,8 @@ This guide provides step-by-step installation instructions for both macOS and Wi
 - [Windows Installation](#windows-installation)
 - [Configuration](#configuration)
 - [Claude Desktop Setup](#claude-desktop-setup)
+- [HTTP Transport Mode](#http-transport-mode)
+- [Docker Deployment](#docker-deployment)
 - [Verification](#verification)
 - [Troubleshooting](#troubleshooting)
 
@@ -18,7 +20,7 @@ This guide provides step-by-step installation instructions for both macOS and Wi
 ## Prerequisites
 
 ### For Both Platforms:
-- **Python 3.8 or higher** installed
+- **Python 3.13 or higher** installed
 - **Claude Desktop** installed ([Download here](https://claude.ai/download))
 - **Meraki Dashboard API Key** ([Get one here](https://documentation.meraki.com/General_Administration/Other_Topics/Cisco_Meraki_Dashboard_API))
 - **Meraki Organization ID** (found in Dashboard → Organization → Settings)
@@ -40,7 +42,7 @@ python --version
 python --version
 ```
 
-If Python is not installed or version is < 3.8:
+If Python is not installed or version is < 3.13:
 - **macOS:** Install from [python.org](https://www.python.org/downloads/) or use Homebrew: `brew install python`
 - **Windows:** Install from [python.org](https://www.python.org/downloads/) (check "Add Python to PATH" during installation)
 
@@ -54,7 +56,7 @@ If Python is not installed or version is < 3.8:
 ### Step 2: Clone the Repository
 ```bash
 cd ~
-git clone https://github.com/YOUR_USERNAME/meraki-magic-mcp.git
+git clone https://github.com/MKutka/meraki-magic-mcp.git
 cd meraki-magic-mcp
 ```
 
@@ -67,7 +69,7 @@ cd meraki-magic-mcp
 brew install git
 
 # Then clone
-git clone https://github.com/YOUR_USERNAME/meraki-magic-mcp.git
+git clone https://github.com/MKutka/meraki-magic-mcp.git
 cd meraki-magic-mcp
 ```
 
@@ -159,7 +161,7 @@ cd ~
 
 **If you have git installed:**
 ```cmd
-git clone https://github.com/YOUR_USERNAME/meraki-magic-mcp.git
+git clone https://github.com/MKutka/meraki-magic-mcp.git
 cd meraki-magic-mcp
 ```
 
@@ -169,7 +171,7 @@ cd meraki-magic-mcp
 3. Restart terminal and run clone command above
 
 **OR download as ZIP:**
-1. Go to: https://github.com/YOUR_USERNAME/meraki-magic-mcp
+1. Go to: https://github.com/MKutka/meraki-magic-mcp
 2. Click green "Code" button → "Download ZIP"
 3. Extract to `C:\Users\YourName\meraki-magic-mcp`
 4. Navigate there in terminal:
@@ -310,6 +312,7 @@ Config file: `claude_desktop_config.json`
       "command": "/Users/yourname/meraki-magic-mcp/.venv/bin/fastmcp",
       "args": [
         "run",
+        "-t", "stdio",
         "/Users/yourname/meraki-magic-mcp/meraki-mcp-dynamic.py"
       ]
     }
@@ -317,7 +320,7 @@ Config file: `claude_desktop_config.json`
 }
 ```
 
-**Windows Example (Command Prompt path style):**
+**Windows Example:**
 ```json
 {
   "mcpServers": {
@@ -325,21 +328,7 @@ Config file: `claude_desktop_config.json`
       "command": "C:/Users/YourName/meraki-magic-mcp/.venv/Scripts/fastmcp.exe",
       "args": [
         "run",
-        "C:/Users/YourName/meraki-magic-mcp/meraki-mcp-dynamic.py"
-      ]
-    }
-  }
-}
-```
-
-**Windows Example (PowerShell path style):**
-```json
-{
-  "mcpServers": {
-    "Meraki_Magic_MCP": {
-      "command": "C:/Users/YourName/meraki-magic-mcp/.venv/Scripts/fastmcp.exe",
-      "args": [
-        "run",
+        "-t", "stdio",
         "C:/Users/YourName/meraki-magic-mcp/meraki-mcp-dynamic.py"
       ]
     }
@@ -362,6 +351,163 @@ Config file: `claude_desktop_config.json`
 **Windows:**
 - Right-click Claude in system tray → Exit
 - Reopen Claude Desktop from Start Menu
+
+---
+
+## HTTP Transport Mode
+
+By default, the MCP server uses **stdio** transport for direct local connections (Claude Desktop, Cursor). For remote or containerized deployments, you can use **HTTP (StreamableHTTP)** transport.
+
+### Transport Options
+
+| Transport | Use Case | Config Value |
+|-----------|----------|-------------|
+| **stdio** | Local Claude Desktop / Cursor (default) | `MCP_TRANSPORT=stdio` |
+| **http** | Remote/Docker deployments via StreamableHTTP | `MCP_TRANSPORT=http` |
+| **sse** | Clients that only support Server-Sent Events | `MCP_TRANSPORT=sse` |
+
+### Running in HTTP Mode (Local)
+
+**Step 1: Configure `.env`**
+
+Add or update these settings in your `.env` file:
+```env
+MCP_TRANSPORT=http
+MCP_HOST=127.0.0.1
+MCP_PORT=8000
+```
+
+**Step 2: Start the server**
+```bash
+# Activate virtual environment first
+source .venv/bin/activate  # macOS/Linux
+# .venv\Scripts\activate.bat  # Windows
+
+python meraki-mcp-dynamic.py
+```
+
+The server starts on `http://127.0.0.1:8000/mcp`.
+
+**Step 3: Connect Claude Desktop via mcp-remote**
+
+Requires [Node.js](https://nodejs.org/) installed. Edit Claude Desktop config:
+
+**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+**Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "Meraki_Magic_MCP": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://127.0.0.1:8000/mcp"]
+    }
+  }
+}
+```
+
+Restart Claude Desktop after updating the config.
+
+### Remote / Network Deployment
+
+To accept connections from other machines, bind to all interfaces:
+
+```env
+MCP_TRANSPORT=http
+MCP_HOST=0.0.0.0
+MCP_PORT=8000
+```
+
+Remote clients connect via `http://<server-ip>:8000/mcp`.
+
+---
+
+## Docker Deployment
+
+Docker provides the simplest way to deploy the MCP server remotely.
+
+### Prerequisites
+- [Docker](https://docs.docker.com/get-docker/) installed and running
+
+### Quick Start
+
+**Step 1: Create `.env` file with your credentials**
+```bash
+cp .env-example .env
+# Edit .env with your MERAKI_API_KEY and MERAKI_ORG_ID
+```
+
+**Step 2: Build and run**
+```bash
+docker compose up -d
+```
+
+The server starts on `http://localhost:8000/mcp` using the dynamic MCP (804+ endpoints).
+
+**Step 3: Verify**
+```bash
+curl -s -X POST http://localhost:8000/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}},"id":1}'
+```
+
+You should see a JSON response with `serverInfo.name` = "Meraki Magic MCP - Full API".
+
+**Step 4: Connect Claude Desktop**
+```json
+{
+  "mcpServers": {
+    "Meraki_Magic_MCP": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://localhost:8000/mcp"]
+    }
+  }
+}
+```
+
+### Docker Configuration
+
+Environment variables can be set in `.env`, `docker-compose.yml`, or passed via `docker run -e`:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MCP_TRANSPORT` | `http` | Transport mode (http, stdio, sse) |
+| `MCP_HOST` | `0.0.0.0` | Bind address |
+| `MCP_PORT` | `8000` | Bind port |
+| `MCP_SERVER` | `dynamic` | Server file: `dynamic` (804+ endpoints) or `manual` (curated tools) |
+| `MERAKI_API_KEY` | *(required)* | Your Meraki Dashboard API key |
+| `MERAKI_ORG_ID` | *(optional)* | Default organization ID |
+
+### Docker Commands
+
+```bash
+# Build image
+docker build -t meraki-magic-mcp .
+
+# Run with docker compose
+docker compose up -d
+
+# View logs
+docker compose logs -f
+
+# Stop
+docker compose down
+
+# Run manually (without compose)
+docker run -d --name meraki-mcp \
+  -p 8000:8000 \
+  -e MERAKI_API_KEY="your-key" \
+  -e MERAKI_ORG_ID="your-org-id" \
+  meraki-magic-mcp
+
+# Use the manual (curated) server instead
+docker run -d --name meraki-mcp \
+  -p 8000:8000 \
+  -e MERAKI_API_KEY="your-key" \
+  -e MCP_SERVER=manual \
+  meraki-magic-mcp
+```
 
 ---
 
@@ -484,7 +630,7 @@ python --version
 python3 --version
 ```
 
-**Needs to be 3.8 or higher.**
+**Needs to be 3.13 or higher.**
 
 **Upgrade Python:**
 - **macOS:** `brew upgrade python` or download from python.org
@@ -576,7 +722,7 @@ Restart Claude Desktop and check logs for detailed output.
 
 If you encounter issues:
 1. Check [Troubleshooting](#troubleshooting) section above
-2. Search existing [GitHub Issues](https://github.com/YOUR_USERNAME/meraki-magic-mcp/issues)
+2. Search existing [GitHub Issues](https://github.com/MKutka/meraki-magic-mcp/issues)
 3. Create new issue with:
    - Operating system and version
    - Python version (`python --version`)

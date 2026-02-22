@@ -1,0 +1,15 @@
+.venv/
+.git/
+.claude/
+.gemini/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+debug/
+output.txt
+output2.txt
+.meraki_cache/
+*.egg-info/
+dist/
+build/

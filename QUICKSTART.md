@@ -17,7 +17,7 @@ I've created a **dynamic version** of your Meraki MCP that automatically exposes
 Before using the dynamic MCP, run the inspection script to see what will be available:
 
 ```bash
-cd /Users/apavlock/meraki-magic-mcp
+cd /path/to/meraki-magic-mcp
 source .venv/bin/activate
 python3 inspect_tools.py
 ```
@@ -35,17 +35,19 @@ This will show you:
 
 Edit your Claude Desktop config file:
 
-**Location**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+**Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 
 **Option A: Replace existing MCP**
 ```json
 {
   "mcpServers": {
     "Meraki_Magic_MCP": {
-      "command": "/Users/apavlock/meraki-magic-mcp/.venv/bin/fastmcp",
+      "command": "/path/to/meraki-magic-mcp/.venv/bin/fastmcp",
       "args": [
         "run",
-        "/Users/apavlock/meraki-magic-mcp/meraki-mcp-dynamic.py"
+        "-t", "stdio",
+        "/path/to/meraki-magic-mcp/meraki-mcp-dynamic.py"
       ]
     }
   }
@@ -57,22 +59,26 @@ Edit your Claude Desktop config file:
 {
   "mcpServers": {
     "Meraki_Curated": {
-      "command": "/Users/apavlock/meraki-magic-mcp/.venv/bin/fastmcp",
+      "command": "/path/to/meraki-magic-mcp/.venv/bin/fastmcp",
       "args": [
         "run",
-        "/Users/apavlock/meraki-magic-mcp/meraki-mcp.py"
+        "-t", "stdio",
+        "/path/to/meraki-magic-mcp/meraki-mcp.py"
       ]
     },
     "Meraki_Full_API": {
-      "command": "/Users/apavlock/meraki-magic-mcp/.venv/bin/fastmcp",
+      "command": "/path/to/meraki-magic-mcp/.venv/bin/fastmcp",
       "args": [
         "run",
-        "/Users/apavlock/meraki-magic-mcp/meraki-mcp-dynamic.py"
+        "-t", "stdio",
+        "/path/to/meraki-magic-mcp/meraki-mcp-dynamic.py"
       ]
     }
   }
 }
 ```
+
+Replace `/path/to/` with your actual installation path. For HTTP/Docker deployment options, see [INSTALL.md](INSTALL.md#http-transport-mode).
 
 ## Step 3: Restart Claude Desktop
 

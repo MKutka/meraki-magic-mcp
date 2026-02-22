@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import meraki
 import asyncio
@@ -12,15 +13,19 @@ from pathlib import Path
 # Load environment variables from .env file
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
+# Transport configuration
+MCP_TRANSPORT = os.getenv("MCP_TRANSPORT", "stdio").lower()
+MCP_HOST = os.getenv("MCP_HOST", "127.0.0.1")
+MCP_PORT = int(os.getenv("MCP_PORT", "8000"))
+
 # Create an MCP server
-mcp = FastMCP("Meraki Magic MCP")
+mcp = FastMCP("Meraki Magic MCP", host=MCP_HOST, port=MCP_PORT)
 
 # Configuration
 MERAKI_API_KEY = os.getenv("MERAKI_API_KEY")
 MERAKI_ORG_ID = os.getenv("MERAKI_ORG_ID")
 
 if not MERAKI_API_KEY:
-    import sys
     print("FATAL: MERAKI_API_KEY is not set. Add it to .env or the environment.", file=sys.stderr)
     sys.exit(1)
 
@@ -996,6 +1001,12 @@ def greeting(name: str) -> str:
     """Greet a user by name"""
     return f"Hello {name}!"
 
-#execute and return the stdio output
+# Module-level ASGI app for external uvicorn invocation
+app = mcp.streamable_http_app() if MCP_TRANSPORT in ("http", "streamable-http") else None
+
 if __name__ == "__main__":
-    mcp.run(transport="stdio")
+    transport = "streamable-http" if MCP_TRANSPORT == "http" else MCP_TRANSPORT
+    print(f"Starting Meraki Magic MCP ({transport} transport)", file=sys.stderr)
+    if transport in ("streamable-http", "sse"):
+        print(f"Listening on {MCP_HOST}:{MCP_PORT}", file=sys.stderr)
+    mcp.run(transport=transport)

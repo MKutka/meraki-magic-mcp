@@ -72,23 +72,61 @@ Discovery tools to find and use any API method:
 5. **cache_stats** - View caching statistics
 6. **cache_clear** - Clear response cache
 
-## Usage with Claude Desktop
+## Deployment
+
+### Option 1: Claude Desktop (stdio - local)
 
 Update your `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
-    "Meraki_Magic_MCP_Dynamic": {
-      "command": "/Users/apavlock/meraki-magic-mcp/.venv/bin/fastmcp",
+    "Meraki_Magic_MCP": {
+      "command": "/path/to/meraki-magic-mcp/.venv/bin/fastmcp",
       "args": [
         "run",
-        "/Users/apavlock/meraki-magic-mcp/meraki-mcp-dynamic.py"
+        "-t", "stdio",
+        "/path/to/meraki-magic-mcp/meraki-mcp-dynamic.py"
       ]
     }
   }
 }
 ```
+
+Replace `/path/to/` with your actual installation path.
+
+### Option 2: HTTP Server (remote access)
+
+```bash
+# In .env:
+MCP_TRANSPORT=http
+MCP_HOST=0.0.0.0
+MCP_PORT=8000
+
+python meraki-mcp-dynamic.py
+# Server at http://<host>:8000/mcp
+```
+
+### Option 3: Docker
+
+```bash
+docker compose up -d
+# Server at http://localhost:8000/mcp
+```
+
+Connect Claude Desktop to HTTP/Docker servers using mcp-remote:
+```json
+{
+  "mcpServers": {
+    "Meraki_Magic_MCP": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://localhost:8000/mcp"]
+    }
+  }
+}
+```
+
+See [INSTALL.md](INSTALL.md#http-transport-mode) for full details.
 
 ## Example Usage in Claude
 
@@ -154,12 +192,12 @@ You can use BOTH! Configure both servers in your Claude Desktop config:
 {
   "mcpServers": {
     "Meraki_Curated": {
-      "command": "/Users/apavlock/meraki-magic-mcp/.venv/bin/fastmcp",
-      "args": ["run", "/Users/apavlock/meraki-magic-mcp/meraki-mcp.py"]
+      "command": "/path/to/meraki-magic-mcp/.venv/bin/fastmcp",
+      "args": ["run", "-t", "stdio", "/path/to/meraki-magic-mcp/meraki-mcp.py"]
     },
     "Meraki_Full_API": {
-      "command": "/Users/apavlock/meraki-magic-mcp/.venv/bin/fastmcp",
-      "args": ["run", "/Users/apavlock/meraki-magic-mcp/meraki-mcp-dynamic.py"]
+      "command": "/path/to/meraki-magic-mcp/.venv/bin/fastmcp",
+      "args": ["run", "-t", "stdio", "/path/to/meraki-magic-mcp/meraki-mcp-dynamic.py"]
     }
   }
 }

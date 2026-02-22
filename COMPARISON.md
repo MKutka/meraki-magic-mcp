@@ -8,12 +8,14 @@ You now have **TWO versions** of the Meraki MCP server:
 |---------|--------------------------|-----------------------------------|
 | **Tools** | 40 hand-coded endpoints | ~804 auto-generated endpoints |
 | **Coverage** | 0.57% of API | 100% of SDK methods |
-| **Type Safety** | ✅ Pydantic schemas | ❌ Generic kwargs |
-| **Documentation** | ✅ Custom descriptions | ⚠️ Auto-generated |
-| **Maintenance** | ❌ Manual updates needed | ✅ Auto-updates with SDK |
-| **Custom Logic** | ✅ Can add per-endpoint | ❌ Generic wrapper |
-| **Error Handling** | ✅ Built-in for all | ✅ Built-in for all |
-| **Async Support** | ✅ Selective | ✅ All methods |
+| **Type Safety** | Pydantic schemas | Generic kwargs |
+| **Documentation** | Custom descriptions | Auto-generated |
+| **Maintenance** | Manual updates needed | Auto-updates with SDK |
+| **Custom Logic** | Can add per-endpoint | Generic wrapper |
+| **Error Handling** | Built-in for all | Built-in for all |
+| **Async Support** | Selective | All methods |
+| **Transports** | stdio, HTTP, SSE | stdio, HTTP, SSE |
+| **Docker** | Supported | Supported |
 
 ## What Each Version Includes
 

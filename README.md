@@ -41,8 +41,8 @@ Meraki Magic is a Python-based MCP (Model Context Protocol) server for Cisco's M
 ## Quick Installation
 
 ### Prerequisites
-- Python 3.8+
-- Claude Desktop
+- Python 3.13+
+- Claude Desktop (or any MCP-compatible client)
 - Meraki Dashboard API Key
 - Meraki Organization ID
 
@@ -88,6 +88,16 @@ READ_ONLY_MODE=false
 
 Get your API key from: **Meraki Dashboard → Organization → Settings → Dashboard API access**
 
+## Deployment Options
+
+There are three ways to deploy Meraki Magic MCP:
+
+| Method | Best For | Transport |
+|--------|----------|-----------|
+| **[Local (stdio)](#claude-desktop-setup)** | Claude Desktop / Cursor on same machine | stdio |
+| **[HTTP Server](#http-transport)** | Remote access, shared team server | StreamableHTTP |
+| **[Docker](#docker-deployment)** | Containerized / production deployments | StreamableHTTP |
+
 ## Claude Desktop Setup
 
 ### Dynamic MCP (Recommended)
@@ -103,10 +113,11 @@ Get your API key from: **Meraki Dashboard → Organization → Settings → Dash
 {
   "mcpServers": {
     "Meraki_Magic_MCP": {
-      "command": "/Users/yourname/meraki-magic-mcp/.venv/bin/fastmcp",
+      "command": "/path/to/meraki-magic-mcp/.venv/bin/fastmcp",
       "args": [
         "run",
-        "/Users/yourname/meraki-magic-mcp/meraki-mcp-dynamic.py"
+        "-t", "stdio",
+        "/path/to/meraki-magic-mcp/meraki-mcp-dynamic.py"
       ]
     }
   }
@@ -121,6 +132,7 @@ Get your API key from: **Meraki Dashboard → Organization → Settings → Dash
       "command": "C:/Users/YourName/meraki-magic-mcp/.venv/Scripts/fastmcp.exe",
       "args": [
         "run",
+        "-t", "stdio",
         "C:/Users/YourName/meraki-magic-mcp/meraki-mcp-dynamic.py"
       ]
     }
@@ -128,7 +140,7 @@ Get your API key from: **Meraki Dashboard → Organization → Settings → Dash
 }
 ```
 
-**⚠️ Windows users:** Use forward slashes `/` and include `.exe` extension
+Replace `/path/to/` with your actual installation path. Windows users: use forward slashes `/` and include `.exe`.
 
 3. **Restart Claude Desktop** (Quit completely, then reopen)
 
@@ -148,16 +160,57 @@ You can run both simultaneously:
 {
   "mcpServers": {
     "Meraki_Curated": {
-      "command": "/Users/apavlock/meraki-magic-mcp/.venv/bin/fastmcp",
-      "args": ["run", "/Users/apavlock/meraki-magic-mcp/meraki-mcp.py"]
+      "command": "/path/to/meraki-magic-mcp/.venv/bin/fastmcp",
+      "args": ["run", "-t", "stdio", "/path/to/meraki-magic-mcp/meraki-mcp.py"]
     },
     "Meraki_Full_API": {
-      "command": "/Users/apavlock/meraki-magic-mcp/.venv/bin/fastmcp",
-      "args": ["run", "/Users/apavlock/meraki-magic-mcp/meraki-mcp-dynamic.py"]
+      "command": "/path/to/meraki-magic-mcp/.venv/bin/fastmcp",
+      "args": ["run", "-t", "stdio", "/path/to/meraki-magic-mcp/meraki-mcp-dynamic.py"]
     }
   }
 }
 ```
+
+## HTTP Transport
+
+Run the MCP server over HTTP for remote access or shared team use:
+
+```bash
+# Set transport in .env
+MCP_TRANSPORT=http
+MCP_HOST=127.0.0.1  # Use 0.0.0.0 for remote access
+MCP_PORT=8000
+
+# Start the server
+python meraki-mcp-dynamic.py
+# Server available at http://127.0.0.1:8000/mcp
+```
+
+Connect Claude Desktop to an HTTP server using [mcp-remote](https://www.npmjs.com/package/mcp-remote) (requires Node.js):
+
+```json
+{
+  "mcpServers": {
+    "Meraki_Magic_MCP": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://127.0.0.1:8000/mcp"]
+    }
+  }
+}
+```
+
+## Docker Deployment
+
+The fastest way to deploy remotely:
+
+```bash
+cp .env-example .env
+# Edit .env with your MERAKI_API_KEY and MERAKI_ORG_ID
+docker compose up -d
+# Server available at http://localhost:8000/mcp
+```
+
+**📖 Full HTTP & Docker instructions: [INSTALL.md](INSTALL.md#http-transport-mode)**
 
 ## Keeping Updated
 

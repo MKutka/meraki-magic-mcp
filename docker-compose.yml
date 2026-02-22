@@ -1,0 +1,19 @@
+services:
+  meraki-mcp:
+    build: .
+    container_name: meraki-magic-mcp
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - MCP_TRANSPORT=http
+      - MCP_HOST=0.0.0.0
+      - MCP_PORT=8000
+      - MCP_SERVER=dynamic
+    volumes:
+      - meraki-cache:/app/.meraki_cache
+    restart: unless-stopped
+
+volumes:
+  meraki-cache:
