@@ -82,11 +82,11 @@ Update your `claude_desktop_config.json`:
 {
   "mcpServers": {
     "Meraki_Magic_MCP": {
-      "command": "/path/to/meraki-magic-mcp/.venv/bin/fastmcp",
+      "command": "/path/to/meraki-magic-mcp-community/.venv/bin/fastmcp",
       "args": [
         "run",
         "-t", "stdio",
-        "/path/to/meraki-magic-mcp/meraki-mcp-dynamic.py"
+        "/path/to/meraki-magic-mcp-community/meraki-mcp-dynamic.py"
       ]
     }
   }
@@ -192,12 +192,12 @@ You can use BOTH! Configure both servers in your Claude Desktop config:
 {
   "mcpServers": {
     "Meraki_Curated": {
-      "command": "/path/to/meraki-magic-mcp/.venv/bin/fastmcp",
-      "args": ["run", "-t", "stdio", "/path/to/meraki-magic-mcp/meraki-mcp.py"]
+      "command": "/path/to/meraki-magic-mcp-community/.venv/bin/fastmcp",
+      "args": ["run", "-t", "stdio", "/path/to/meraki-magic-mcp-community/meraki-mcp.py"]
     },
     "Meraki_Full_API": {
-      "command": "/path/to/meraki-magic-mcp/.venv/bin/fastmcp",
-      "args": ["run", "-t", "stdio", "/path/to/meraki-magic-mcp/meraki-mcp-dynamic.py"]
+      "command": "/path/to/meraki-magic-mcp-community/.venv/bin/fastmcp",
+      "args": ["run", "-t", "stdio", "/path/to/meraki-magic-mcp-community/meraki-mcp-dynamic.py"]
     }
   }
 }

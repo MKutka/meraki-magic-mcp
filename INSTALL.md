@@ -56,8 +56,8 @@ If Python is not installed or version is < 3.13:
 ### Step 2: Clone the Repository
 ```bash
 cd ~
-git clone https://github.com/MKutka/meraki-magic-mcp.git
-cd meraki-magic-mcp
+git clone https://github.com/CiscoDevNet/meraki-magic-mcp-community.git
+cd meraki-magic-mcp-community
 ```
 
 **If you don't have git:**
@@ -69,8 +69,8 @@ cd meraki-magic-mcp
 brew install git
 
 # Then clone
-git clone https://github.com/MKutka/meraki-magic-mcp.git
-cd meraki-magic-mcp
+git clone https://github.com/CiscoDevNet/meraki-magic-mcp-community.git
+cd meraki-magic-mcp-community
 ```
 
 ### Step 3: Create Virtual Environment
@@ -132,7 +132,7 @@ READ_ONLY_MODE=false
 pwd
 ```
 
-**Copy the output** (e.g., `/Users/yourname/meraki-magic-mcp`)
+**Copy the output** (e.g., `/Users/yourname/meraki-magic-mcp-community`)
 
 ---
 
@@ -161,8 +161,8 @@ cd ~
 
 **If you have git installed:**
 ```cmd
-git clone https://github.com/MKutka/meraki-magic-mcp.git
-cd meraki-magic-mcp
+git clone https://github.com/CiscoDevNet/meraki-magic-mcp-community.git
+cd meraki-magic-mcp-community
 ```
 
 **If you don't have git:**
@@ -171,12 +171,12 @@ cd meraki-magic-mcp
 3. Restart terminal and run clone command above
 
 **OR download as ZIP:**
-1. Go to: https://github.com/MKutka/meraki-magic-mcp
+1. Go to: https://github.com/CiscoDevNet/meraki-magic-mcp-community
 2. Click green "Code" button → "Download ZIP"
-3. Extract to `C:\Users\YourName\meraki-magic-mcp`
+3. Extract to `C:\Users\YourName\meraki-magic-mcp-community`
 4. Navigate there in terminal:
    ```cmd
-   cd %USERPROFILE%\meraki-magic-mcp
+   cd %USERPROFILE%\meraki-magic-mcp-community
    ```
 
 ### Step 4: Create Virtual Environment
@@ -250,11 +250,11 @@ cd
 pwd
 ```
 
-**Copy the output** (e.g., `C:\Users\YourName\meraki-magic-mcp`)
+**Copy the output** (e.g., `C:\Users\YourName\meraki-magic-mcp-community`)
 
 **Note:** For Windows paths, you'll need to convert backslashes to forward slashes in the Claude config:
-- Windows path: `C:\Users\YourName\meraki-magic-mcp`
-- Claude config: `C:/Users/YourName/meraki-magic-mcp`
+- Windows path: `C:\Users\YourName\meraki-magic-mcp-community`
+- Claude config: `C:/Users/YourName/meraki-magic-mcp-community`
 
 ---
 
@@ -309,11 +309,11 @@ Config file: `claude_desktop_config.json`
 {
   "mcpServers": {
     "Meraki_Magic_MCP": {
-      "command": "/Users/yourname/meraki-magic-mcp/.venv/bin/fastmcp",
+      "command": "/Users/yourname/meraki-magic-mcp-community/.venv/bin/fastmcp",
       "args": [
         "run",
         "-t", "stdio",
-        "/Users/yourname/meraki-magic-mcp/meraki-mcp-dynamic.py"
+        "/Users/yourname/meraki-magic-mcp-community/meraki-mcp-dynamic.py"
       ]
     }
   }
@@ -325,11 +325,11 @@ Config file: `claude_desktop_config.json`
 {
   "mcpServers": {
     "Meraki_Magic_MCP": {
-      "command": "C:/Users/YourName/meraki-magic-mcp/.venv/Scripts/fastmcp.exe",
+      "command": "C:/Users/YourName/meraki-magic-mcp-community/.venv/Scripts/fastmcp.exe",
       "args": [
         "run",
         "-t", "stdio",
-        "C:/Users/YourName/meraki-magic-mcp/meraki-mcp-dynamic.py"
+        "C:/Users/YourName/meraki-magic-mcp-community/meraki-mcp-dynamic.py"
       ]
     }
   }
@@ -483,7 +483,7 @@ Environment variables can be set in `.env`, `docker-compose.yml`, or passed via 
 
 ```bash
 # Build image
-docker build -t meraki-magic-mcp .
+docker build -t meraki-magic-mcp-community .
 
 # Run with docker compose
 docker compose up -d
@@ -499,14 +499,14 @@ docker run -d --name meraki-mcp \
   -p 8000:8000 \
   -e MERAKI_API_KEY="your-key" \
   -e MERAKI_ORG_ID="your-org-id" \
-  meraki-magic-mcp
+  meraki-magic-mcp-community
 
 # Use the manual (curated) server instead
 docker run -d --name meraki-mcp \
   -p 8000:8000 \
   -e MERAKI_API_KEY="your-key" \
   -e MCP_SERVER=manual \
-  meraki-magic-mcp
+  meraki-magic-mcp-community
 ```
 
 ---
@@ -722,7 +722,7 @@ Restart Claude Desktop and check logs for detailed output.
 
 If you encounter issues:
 1. Check [Troubleshooting](#troubleshooting) section above
-2. Search existing [GitHub Issues](https://github.com/MKutka/meraki-magic-mcp/issues)
+2. Search existing [GitHub Issues](https://github.com/CiscoDevNet/meraki-magic-mcp-community/issues)
 3. Create new issue with:
    - Operating system and version
    - Python version (`python --version`)

@@ -50,8 +50,8 @@ Meraki Magic is a Python-based MCP (Model Context Protocol) server for Cisco's M
 
 **macOS:**
 ```bash
-git clone https://github.com/MKutka/meraki-magic-mcp.git
-cd meraki-magic-mcp
+git clone https://github.com/CiscoDevNet/meraki-magic-mcp-community.git
+cd meraki-magic-mcp-community
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -61,8 +61,8 @@ cp .env-example .env
 
 **Windows (PowerShell):**
 ```powershell
-git clone https://github.com/MKutka/meraki-magic-mcp.git
-cd meraki-magic-mcp
+git clone https://github.com/CiscoDevNet/meraki-magic-mcp-community.git
+cd meraki-magic-mcp-community
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
@@ -113,11 +113,11 @@ There are three ways to deploy Meraki Magic MCP:
 {
   "mcpServers": {
     "Meraki_Magic_MCP": {
-      "command": "/path/to/meraki-magic-mcp/.venv/bin/fastmcp",
+      "command": "/path/to/meraki-magic-mcp-community/.venv/bin/fastmcp",
       "args": [
         "run",
         "-t", "stdio",
-        "/path/to/meraki-magic-mcp/meraki-mcp-dynamic.py"
+        "/path/to/meraki-magic-mcp-community/meraki-mcp-dynamic.py"
       ]
     }
   }
@@ -129,11 +129,11 @@ There are three ways to deploy Meraki Magic MCP:
 {
   "mcpServers": {
     "Meraki_Magic_MCP": {
-      "command": "C:/Users/YourName/meraki-magic-mcp/.venv/Scripts/fastmcp.exe",
+      "command": "C:/Users/YourName/meraki-magic-mcp-community/.venv/Scripts/fastmcp.exe",
       "args": [
         "run",
         "-t", "stdio",
-        "C:/Users/YourName/meraki-magic-mcp/meraki-mcp-dynamic.py"
+        "C:/Users/YourName/meraki-magic-mcp-community/meraki-mcp-dynamic.py"
       ]
     }
   }
@@ -160,12 +160,12 @@ You can run both simultaneously:
 {
   "mcpServers": {
     "Meraki_Curated": {
-      "command": "/path/to/meraki-magic-mcp/.venv/bin/fastmcp",
-      "args": ["run", "-t", "stdio", "/path/to/meraki-magic-mcp/meraki-mcp.py"]
+      "command": "/path/to/meraki-magic-mcp-community/.venv/bin/fastmcp",
+      "args": ["run", "-t", "stdio", "/path/to/meraki-magic-mcp-community/meraki-mcp.py"]
     },
     "Meraki_Full_API": {
-      "command": "/path/to/meraki-magic-mcp/.venv/bin/fastmcp",
-      "args": ["run", "-t", "stdio", "/path/to/meraki-magic-mcp/meraki-mcp-dynamic.py"]
+      "command": "/path/to/meraki-magic-mcp-community/.venv/bin/fastmcp",
+      "args": ["run", "-t", "stdio", "/path/to/meraki-magic-mcp-community/meraki-mcp-dynamic.py"]
     }
   }
 }
@@ -273,7 +273,7 @@ Create a new network named "Branch Office"
 
 ## Support
 
-- **Issues:** [GitHub Issues](https://github.com/MKutka/meraki-magic-mcp/issues)
+- **Issues:** [GitHub Issues](https://github.com/CiscoDevNet/meraki-magic-mcp-community/issues)
 - **Meraki API Docs:** [developer.cisco.com/meraki/api-v1](https://developer.cisco.com/meraki/api-v1)
 - **MCP Protocol:** [modelcontextprotocol.io](https://modelcontextprotocol.io)
 

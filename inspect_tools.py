@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# Copyright 2026 Cisco Systems, Inc. and its affiliates
+#
+# SPDX-License-Identifier: MIT
+
 """
 Inspection script to see what tools would be registered in the dynamic MCP
 This script does NOT make any API calls - it only inspects the SDK structure
