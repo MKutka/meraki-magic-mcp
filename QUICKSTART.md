@@ -17,7 +17,7 @@ I've created a **dynamic version** of your Meraki MCP that automatically exposes
 Before using the dynamic MCP, run the inspection script to see what will be available:
 
 ```bash
-cd /path/to/meraki-magic-mcp
+cd /path/to/meraki-magic-mcp-community
 source .venv/bin/activate
 python3 inspect_tools.py
 ```
@@ -43,11 +43,11 @@ Edit your Claude Desktop config file:
 {
   "mcpServers": {
     "Meraki_Magic_MCP": {
-      "command": "/path/to/meraki-magic-mcp/.venv/bin/fastmcp",
+      "command": "/path/to/meraki-magic-mcp-community/.venv/bin/fastmcp",
       "args": [
         "run",
         "-t", "stdio",
-        "/path/to/meraki-magic-mcp/meraki-mcp-dynamic.py"
+        "/path/to/meraki-magic-mcp-community/meraki-mcp-dynamic.py"
       ]
     }
   }
@@ -59,19 +59,19 @@ Edit your Claude Desktop config file:
 {
   "mcpServers": {
     "Meraki_Curated": {
-      "command": "/path/to/meraki-magic-mcp/.venv/bin/fastmcp",
+      "command": "/path/to/meraki-magic-mcp-community/.venv/bin/fastmcp",
       "args": [
         "run",
         "-t", "stdio",
-        "/path/to/meraki-magic-mcp/meraki-mcp.py"
+        "/path/to/meraki-magic-mcp-community/meraki-mcp.py"
       ]
     },
     "Meraki_Full_API": {
-      "command": "/path/to/meraki-magic-mcp/.venv/bin/fastmcp",
+      "command": "/path/to/meraki-magic-mcp-community/.venv/bin/fastmcp",
       "args": [
         "run",
         "-t", "stdio",
-        "/path/to/meraki-magic-mcp/meraki-mcp-dynamic.py"
+        "/path/to/meraki-magic-mcp-community/meraki-mcp-dynamic.py"
       ]
     }
   }
