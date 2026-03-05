@@ -46,7 +46,8 @@ MAX_RESPONSE_TOKENS = int(os.getenv("MAX_RESPONSE_TOKENS", "5000"))  # Max token
 MAX_PER_PAGE = int(os.getenv("MAX_PER_PAGE", "100"))  # Max items per page for paginated endpoints
 ENABLE_FILE_CACHING = os.getenv("ENABLE_FILE_CACHING", "true").lower() == "true"
 _SCRIPT_DIR = Path(__file__).resolve().parent
-RESPONSE_CACHE_DIR = os.getenv("RESPONSE_CACHE_DIR", str(_SCRIPT_DIR / ".meraki_cache"))
+_raw_cache_dir = os.getenv("RESPONSE_CACHE_DIR", ".meraki_cache")
+RESPONSE_CACHE_DIR = str(Path(_raw_cache_dir) if Path(_raw_cache_dir).is_absolute() else _SCRIPT_DIR / _raw_cache_dir)
 
 # Create cache directory if it doesn't exist
 if ENABLE_FILE_CACHING:
